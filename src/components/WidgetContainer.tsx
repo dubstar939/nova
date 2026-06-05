@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Move } from "lucide-react";
+import { Move, GripVertical } from "lucide-react";
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -43,8 +43,22 @@ export default function WidgetContainer({
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const containerBounds = { maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000, maxY: 1200 - minSize.height };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Sync with parent state changes
+  useEffect(() => {
+    if (initialPosition.x !== position.x || initialPosition.y !== position.y) {
+      setPosition(initialPosition);
+    }
+  }, [initialPosition.x, initialPosition.y]);
+
+  useEffect(() => {
+    if (initialSize?.width !== size.width || initialSize?.height !== size.height) {
+      setSize(initialSize || { width: minSize.width, height: minSize.height });
+    }
+  }, [initialSize?.width, initialSize?.height]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".resize-handle")) return;
     
     setIsDragging(true);
@@ -55,19 +69,19 @@ export default function WidgetContainer({
         y: e.clientY - rect.top,
       });
     }
-  };
+  }, []);
 
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsResizing(true);
-  };
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         const newPosition = {
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y,
+          x: Math.max(0, Math.min(e.clientX - dragOffset.x, containerBounds.maxX)),
+          y: Math.max(0, Math.min(e.clientY - dragOffset.y, containerBounds.maxY)),
         };
         setPosition(newPosition);
         onPositionChange?.(id, newPosition);
@@ -97,7 +111,7 @@ export default function WidgetContainer({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange]);
+  }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange, containerBounds]);
 
   return (
     <motion.div
@@ -111,8 +125,11 @@ export default function WidgetContainer({
         width: size.width,
         height: size.height,
         zIndex: isDragging || isResizing ? 50 : 10,
+        touchAction: isDragging || isResizing ? 'none' : 'auto',
       }}
       className={`${isDragging ? "cursor-grabbing" : ""}`}
+      role="region"
+      aria-label={`${title} widget`}
     >
       <div
         className={`w-full h-full rounded-2xl border overflow-hidden flex flex-col ${
@@ -121,23 +138,30 @@ export default function WidgetContainer({
             : "bg-white/95 border-blue-200"
         } backdrop-blur-sm shadow-xl ${
           isDragging || isResizing
-            ? "ring-2 ring-cyan-400"
+            ? "ring-2 ring-cyan-400 shadow-2xl"
             : ""
         }`}
       >
         <div
           onMouseDown={handleMouseDown}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            handleMouseDown({ ...e, clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+          }}
           className={`flex items-center justify-between px-4 py-3 cursor-grab select-none ${
             darkMode
               ? "bg-slate-800/50 border-b border-cyan-500/20"
               : "bg-slate-50/50 border-b border-blue-100"
           }`}
+          role="toolbar"
+          aria-label={`Drag ${title} widget`}
         >
           <div className="flex items-center gap-2">
-            <Move
+            <GripVertical
               className={`w-4 h-4 ${
                 darkMode ? "text-cyan-400" : "text-blue-500"
               }`}
+              aria-hidden="true"
             />
             <h3
               className={`font-semibold ${
@@ -153,16 +177,25 @@ export default function WidgetContainer({
 
         <div
           onMouseDown={handleResizeMouseDown}
-          className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize"
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            handleResizeMouseDown({ ...e, clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
+          }}
+          className="resize-handle absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1"
+          role="slider"
+          aria-label={`Resize ${title} widget`}
+          aria-valuenow={size.width}
+          aria-valuemin={minSize.width}
         >
           <svg
-            className={`w-6 h-6 ${
+            className={`w-5 h-5 ${
               darkMode ? "text-cyan-500/50" : "text-blue-300"
             }`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
+            aria-hidden="true"
           >
             <path d="M15 3h6v6M9 9l12-12M3 21l18-18" />
           </svg>
