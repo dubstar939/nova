@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PhoneIncoming, PhoneOutgoing, Trash2, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface CallLogWidgetProps {
   darkMode: boolean;
@@ -18,10 +19,12 @@ interface CallLog {
 }
 
 export default function CallLogWidget({ darkMode }: CallLogWidgetProps) {
-  const [calls, setCalls] = useState<CallLog[]>([
+  const defaultCalls: CallLog[] = [
     { id: 1, name: "John Smith", phone: "555-0101", type: "incoming", time: "10:30 AM", notes: "Discuss project timeline" },
     { id: 2, name: "Sarah Johnson", phone: "555-0102", type: "outgoing", time: "11:45 AM", notes: "Follow up on proposal" },
-  ]);
+  ];
+  
+  const [calls, setCalls] = useLocalStorage<CallLog[]>("callLog", defaultCalls);
   const [newCall, setNewCall] = useState({
     name: "",
     phone: "",

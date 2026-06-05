@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Check, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface TodoWidgetProps {
   darkMode: boolean;
@@ -17,11 +18,13 @@ interface Todo {
 }
 
 export default function TodoWidget({ darkMode }: TodoWidgetProps) {
-  const [todos, setTodos] = useState<Todo[]>([
+  const defaultTodos: Todo[] = [
     { id: 1, text: "Review project proposal", completed: false, priority: "high", reminder: "10:00 AM" },
     { id: 2, text: "Team standup meeting", completed: true, priority: "medium" },
     { id: 3, text: "Update documentation", completed: false, priority: "low" },
-  ]);
+  ];
+  
+  const [todos, setTodos] = useLocalStorage<Todo[]>("todoList", defaultTodos);
   const [newTodo, setNewTodo] = useState("");
   const [newPriority, setNewPriority] = useState<"low" | "medium" | "high">("medium");
   const [newReminder, setNewReminder] = useState("");

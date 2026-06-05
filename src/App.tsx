@@ -12,6 +12,7 @@ import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 interface WidgetState {
   id: string;
@@ -95,39 +96,26 @@ const defaultWidgets: WidgetState[] = [
 ];
 
 function App() {
-  const [darkMode, setDarkMode] = useState(true);
-  const [widgets, setWidgets] = useState<WidgetState[]>(defaultWidgets);
   const [isClient, setIsClient] = useState(false);
+  
+  // Use custom hook for persistent dark mode and widget layout
+  const [darkMode, setDarkMode] = useLocalStorage<boolean>("darkMode", true);
+  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", defaultWidgets);
 
-  // Load persisted data once on mount
+  // Initialize client-side only features
   useEffect(() => {
     setIsClient(true);
-    try {
-      const savedMode = localStorage.getItem("darkMode");
-      const savedLayout = localStorage.getItem("widgetLayout");
-      if (savedMode !== null) setDarkMode(JSON.parse(savedMode));
-      if (savedLayout) setWidgets(JSON.parse(savedLayout));
-    } catch (e) {
-      console.error("Failed to load from localStorage", e);
-    }
   }, []);
 
-  // Persist dark mode changes
+  // Apply dark mode class to document
   useEffect(() => {
     if (!isClient) return;
-    localStorage.setItem("darkMode", JSON.stringify(darkMode));
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode, isClient]);
-
-  // Persist layout changes
-  useEffect(() => {
-    if (!isClient) return;
-    localStorage.setItem("widgetLayout", JSON.stringify(widgets));
-  }, [widgets, isClient]);
 
   const handlePositionChange = useCallback(
     (id: string, position: { x: number; y: number }) => {
