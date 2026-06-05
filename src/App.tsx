@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "./components/Header";
 import TimeWidget from "./components/TimeWidget";
 import WeatherWidget from "./components/WeatherWidget";
