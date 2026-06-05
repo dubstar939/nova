@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, X, FileText, Image, File, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface ProjectWidgetProps {
   darkMode: boolean;
@@ -23,7 +24,7 @@ interface Project {
 }
 
 export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
-  const [projects, setProjects] = useState<Project[]>([
+  const defaultProjects: Project[] = [
     { id: 1, name: "Website Redesign", color: "#06b6d4", progress: 75, files: [
       { id: "1", name: "requirements.pdf", type: "document" },
       { id: "2", name: "mockups.png", type: "image" },
@@ -32,7 +33,9 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
     { id: 3, name: "API Integration", color: "#f59e0b", progress: 90, files: [
       { id: "3", name: "api-docs.md", type: "document" },
     ]},
-  ]);
+  ];
+  
+  const [projects, setProjects] = useLocalStorage<Project[]>("projects", defaultProjects);
   const [newProject, setNewProject] = useState({ name: "", color: "#06b6d4" });
   const [isAdding, setIsAdding] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
