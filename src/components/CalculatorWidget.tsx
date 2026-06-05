@@ -25,6 +25,14 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
         .replace(/×/g, "*")
         .replace(/÷/g, "/")
         .replace(/−/g, "-");
+      
+      // Validate expression contains only safe characters
+      if (!/^[\d+\-*/().\s]+$/.test(sanitized)) {
+        setDisplay("Error");
+        setEquation("");
+        return;
+      }
+      
       const result = Function('"use strict"; return (' + sanitized + ")")();
       setDisplay(String(parseFloat(result.toFixed(10))));
       setEquation("");

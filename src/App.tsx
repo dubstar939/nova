@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Header from "./components/Header";
 import TimeWidget from "./components/TimeWidget";
 import WeatherWidget from "./components/WeatherWidget";
@@ -99,6 +99,7 @@ function App() {
   const [widgets, setWidgets] = useState<WidgetState[]>(defaultWidgets);
   const [isClient, setIsClient] = useState(false);
 
+  // Load persisted data once on mount
   useEffect(() => {
     setIsClient(true);
     try {
@@ -111,6 +112,7 @@ function App() {
     }
   }, []);
 
+  // Persist dark mode changes
   useEffect(() => {
     if (!isClient) return;
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
@@ -121,6 +123,7 @@ function App() {
     }
   }, [darkMode, isClient]);
 
+  // Persist layout changes
   useEffect(() => {
     if (!isClient) return;
     localStorage.setItem("widgetLayout", JSON.stringify(widgets));
@@ -144,34 +147,33 @@ function App() {
     []
   );
 
-  const renderWidget = (widget: WidgetState) => {
-    const commonProps = { darkMode };
-
-    switch (widget.id) {
+  // Memoize widget renderer to prevent unnecessary re-renders
+  const renderWidget = useCallback((widgetId: string, darkMode: boolean) => {
+    switch (widgetId) {
       case "time":
-        return <TimeWidget {...commonProps} />;
+        return <TimeWidget darkMode={darkMode} />;
       case "weather":
-        return <WeatherWidget {...commonProps} />;
+        return <WeatherWidget darkMode={darkMode} />;
       case "todo":
-        return <TodoWidget {...commonProps} />;
+        return <TodoWidget darkMode={darkMode} />;
       case "news":
-        return <NewsWidget {...commonProps} />;
+        return <NewsWidget darkMode={darkMode} />;
       case "calllog":
-        return <CallLogWidget {...commonProps} />;
+        return <CallLogWidget darkMode={darkMode} />;
       case "calculator":
-        return <CalculatorWidget {...commonProps} />;
+        return <CalculatorWidget darkMode={darkMode} />;
       case "radio":
-        return <RadioWidget {...commonProps} />;
+        return <RadioWidget darkMode={darkMode} />;
       case "projects":
-        return <ProjectWidget {...commonProps} />;
+        return <ProjectWidget darkMode={darkMode} />;
       case "youtube":
-        return <YouTubeWidget {...commonProps} />;
+        return <YouTubeWidget darkMode={darkMode} />;
       case "announcements":
-        return <AnnouncementWidget {...commonProps} />;
+        return <AnnouncementWidget darkMode={darkMode} />;
       default:
         return null;
     }
-  };
+  }, []);
 
   if (!isClient) {
     return (
@@ -204,7 +206,7 @@ function App() {
               onPositionChange={handlePositionChange}
               onSizeChange={handleSizeChange}
             >
-              {renderWidget(widget)}
+              {renderWidget(widget.id, darkMode)}
             </WidgetContainer>
           ))}
         </main>
