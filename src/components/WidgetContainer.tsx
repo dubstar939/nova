@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Move, GripVertical } from "lucide-react";
+import { GripVertical } from "lucide-react";
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -58,21 +58,27 @@ export default function WidgetContainer({
     }
   }, [initialSize?.width, initialSize?.height]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".resize-handle")) return;
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
+    const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+    
+    if (target.closest(".resize-handle")) return;
     
     setIsDragging(true);
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: clientX - rect.left,
+        y: clientY - rect.top,
       });
     }
   }, []);
 
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('stopPropagation' in e) {
+      e.stopPropagation();
+    }
     setIsResizing(true);
   }, []);
 
@@ -144,10 +150,7 @@ export default function WidgetContainer({
       >
         <div
           onMouseDown={handleMouseDown}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            handleMouseDown({ ...e, clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
-          }}
+          onTouchStart={handleMouseDown}
           className={`flex items-center justify-between px-4 py-3 cursor-grab select-none ${
             darkMode
               ? "bg-slate-800/50 border-b border-cyan-500/20"
@@ -177,10 +180,7 @@ export default function WidgetContainer({
 
         <div
           onMouseDown={handleResizeMouseDown}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            handleResizeMouseDown({ ...e, clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent);
-          }}
+          onTouchStart={handleResizeMouseDown}
           className="resize-handle absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1"
           role="slider"
           aria-label={`Resize ${title} widget`}

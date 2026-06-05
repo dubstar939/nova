@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, PhoneIncoming, PhoneOutgoing, Trash2, Clock } from "lucide-react";
+import { PhoneIncoming, PhoneOutgoing, Trash2, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 

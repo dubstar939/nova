@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Megaphone } from "lucide-react";
+import { Trash2, Megaphone } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
