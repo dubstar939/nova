@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -7,6 +7,7 @@ import { Input } from "./ui/input";
 interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
+  onResetLayout?: () => void;
 }
 
 interface QuickLink {
@@ -15,7 +16,7 @@ interface QuickLink {
   url: string;
 }
 
-export default function Header({ darkMode, setDarkMode }: HeaderProps) {
+export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>([]);
@@ -218,6 +219,19 @@ export default function Header({ darkMode, setDarkMode }: HeaderProps) {
             animate={{ x: 0, opacity: 1 }}
             className="flex items-center gap-3"
           >
+            {onResetLayout && (
+              <Button
+                onClick={onResetLayout}
+                className={`relative overflow-hidden ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
+                    : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                }`}
+                title="Reset widget layout to default"
+              >
+                <RotateCcw className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
+              </Button>
+            )}
             <Button
               onClick={() => setDarkMode(!darkMode)}
               className={`relative overflow-hidden ${

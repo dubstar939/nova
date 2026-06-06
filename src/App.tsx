@@ -27,71 +27,71 @@ const defaultWidgets: WidgetState[] = [
     id: "time",
     title: "Time & Calendar",
     position: { x: 20, y: 100 },
-    size: { width: 600, height: 350 },
+    size: { width: 500, height: 320 },
     minSize: { width: 400, height: 300 },
   },
   {
     id: "weather",
     title: "Weather",
-    position: { x: 640, y: 100 },
-    size: { width: 400, height: 250 },
+    position: { x: 540, y: 100 },
+    size: { width: 380, height: 240 },
     minSize: { width: 300, height: 200 },
+  },
+  {
+    id: "youtube",
+    title: "YouTube",
+    position: { x: 940, y: 100 },
+    size: { width: 360, height: 360 },
+    minSize: { width: 320, height: 300 },
   },
   {
     id: "todo",
     title: "To-Do List",
-    position: { x: 20, y: 470 },
-    size: { width: 400, height: 350 },
+    position: { x: 20, y: 440 },
+    size: { width: 380, height: 340 },
+    minSize: { width: 300, height: 250 },
+  },
+  {
+    id: "projects",
+    title: "Projects",
+    position: { x: 420, y: 440 },
+    size: { width: 360, height: 340 },
+    minSize: { width: 300, height: 300 },
+  },
+  {
+    id: "announcements",
+    title: "Announcements",
+    position: { x: 800, y: 480 },
+    size: { width: 360, height: 300 },
     minSize: { width: 300, height: 250 },
   },
   {
     id: "news",
     title: "News Ticker",
-    position: { x: 440, y: 470 },
-    size: { width: 350, height: 250 },
+    position: { x: 1180, y: 100 },
+    size: { width: 340, height: 280 },
     minSize: { width: 280, height: 200 },
   },
   {
     id: "calllog",
     title: "Call Log",
-    position: { x: 810, y: 370 },
-    size: { width: 380, height: 350 },
+    position: { x: 1180, y: 400 },
+    size: { width: 340, height: 320 },
     minSize: { width: 320, height: 280 },
-  },
-  {
-    id: "calculator",
-    title: "Calculator",
-    position: { x: 810, y: 740 },
-    size: { width: 280, height: 400 },
-    minSize: { width: 250, height: 350 },
   },
   {
     id: "radio",
     title: "Internet Radio",
-    position: { x: 20, y: 840 },
-    size: { width: 400, height: 280 },
+    position: { x: 20, y: 800 },
+    size: { width: 380, height: 280 },
     minSize: { width: 350, height: 250 },
   },
   {
-    id: "projects",
-    title: "Projects",
-    position: { x: 440, y: 740 },
-    size: { width: 350, height: 380 },
-    minSize: { width: 300, height: 300 },
-  },
-  {
-    id: "youtube",
-    title: "YouTube",
-    position: { x: 1110, y: 100 },
-    size: { width: 380, height: 400 },
-    minSize: { width: 320, height: 300 },
-  },
-  {
-    id: "announcements",
-    title: "Announcements",
-    position: { x: 1110, y: 520 },
-    size: { width: 380, height: 300 },
-    minSize: { width: 300, height: 250 },
+    id: "calculator",
+    title: "Calculator",
+    position: { x: 420, y: 800 },
+    size: { width: 280, height: 380 },
+    minSize: { width: 250, height: 350 },
   },
 ];
 
@@ -116,6 +116,10 @@ function App() {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode, isClient]);
+
+  const handleResetLayout = useCallback(() => {
+    setWidgets(defaultWidgets);
+  }, [setWidgets]);
 
   const handlePositionChange = useCallback(
     (id: string, position: { x: number; y: number }) => {
@@ -179,7 +183,7 @@ function App() {
     >
       <ParticleBackground darkMode={darkMode} />
       <div className="relative z-10">
-        <Header darkMode={darkMode} setDarkMode={setDarkMode} />
+        <Header darkMode={darkMode} setDarkMode={setDarkMode} onResetLayout={handleResetLayout} />
 
         <main className="relative w-full" style={{ height: "1200px" }}>
           {widgets.map((widget) => (
