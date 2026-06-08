@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TimeWidgetProps {
@@ -88,16 +87,13 @@ export default function TimeWidget({ darkMode }: TimeWidgetProps) {
     <div className="h-full flex flex-col">
       <div className="flex-1">
         <div className="text-center mb-4">
-          <motion.div
-            key={formatTime(getTimeInTimezone(timezones[selectedTimezone].offset))}
-            initial={{ opacity: 0.5 }}
-            animate={{ opacity: 1 }}
+          <div
             className={`text-4xl font-mono font-bold ${
               darkMode ? "text-white" : "text-slate-800"
             }`}
           >
             {formatTime(getTimeInTimezone(timezones[selectedTimezone].offset))}
-          </motion.div>
+          </div>
           <div
             className={`text-sm mt-1 ${
               darkMode ? "text-slate-400" : "text-slate-600"
