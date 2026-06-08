@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Play, X } from "lucide-react";
+import { Search, Play, X, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -14,20 +14,63 @@ interface Video {
   thumbnail: string;
 }
 
+// Default featured videos
+const defaultVideos: Video[] = [
+  { id: "dQw4w9WgXcQ", title: "Rick Astley - Never Gonna Give You Up", thumbnail: "" },
+  { id: "jNQXAC9IVRw", title: "Me at the zoo", thumbnail: "" },
+  { id: "9bZkp7q19f0", title: "PSY - GANGNAM STYLE", thumbnail: "" },
+];
+
 export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [videos] = useState<Video[]>([
-    { id: "dQw4w9WgXcQ", title: "Music Video 1", thumbnail: "" },
-    { id: "jNQXAC9IVRw", title: "Me at the zoo", thumbnail: "" },
-    { id: "9bZkp7q19f0", title: "PSY - GANGNAM STYLE", thumbnail: "" },
-  ]);
+  const [videos, setVideos] = useState<Video[]>(defaultVideos);
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, "_blank");
+    
+    setIsLoading(true);
+    
+    try {
+      // Use YouTube's RSS feed API to get search results
+      const response = await fetch(
+        `https://www.youtube.com/feeds/videos.xml?q=${encodeURIComponent(searchQuery)}`
+      );
+      
+      if (response.ok) {
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "text/xml");
+        const entries = xml.querySelectorAll("entry");
+        
+        const searchResults: Video[] = Array.from(entries).slice(0, 9).map((entry) => {
+          const videoId = entry.querySelector("id")?.textContent?.split(":")[2] || "";
+          const title = entry.querySelector("title")?.textContent || "";
+          return {
+            id: videoId,
+            title: title,
+            thumbnail: "",
+          };
+        }).filter(v => v.id !== "");
+        
+        if (searchResults.length > 0) {
+          setVideos(searchResults);
+        } else {
+          // Fallback: use default videos if no results
+          setVideos(defaultVideos);
+        }
+      } else {
+        setVideos(defaultVideos);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setVideos(defaultVideos);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const playVideo = (video: Video) => {
@@ -80,13 +123,18 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
         </div>
         <Button
           type="submit"
+          disabled={isLoading}
           className={`${
             darkMode
               ? "bg-cyan-500 hover:bg-cyan-600"
               : "bg-blue-500 hover:bg-blue-600"
-          }`}
+          } disabled:opacity-50`}
         >
-          Search
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            "Search"
+          )}
         </Button>
       </form>
 
