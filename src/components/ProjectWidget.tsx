@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, X, FileText, Image, File, Check } from "lucide-react";
+import { Plus, Trash2, X, FileText, Image, File, Check, MessageSquare, Link as LinkIcon, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -13,6 +13,14 @@ interface FileAttachment {
   id: string;
   name: string;
   type: "document" | "image" | "other";
+  url?: string;
+  linked?: boolean;
+}
+
+interface TimelineNote {
+  id: string;
+  content: string;
+  timestamp: number;
 }
 
 interface Project {
@@ -21,6 +29,7 @@ interface Project {
   color: string;
   progress: number;
   files: FileAttachment[];
+  timeline: TimelineNote[];
 }
 
 export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
@@ -28,11 +37,11 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
     { id: 1, name: "Website Redesign", color: "#06b6d4", progress: 75, files: [
       { id: "1", name: "requirements.pdf", type: "document" },
       { id: "2", name: "mockups.png", type: "image" },
-    ]},
-    { id: 2, name: "Mobile App", color: "#8b5cf6", progress: 45, files: [] },
+    ], timeline: [] },
+    { id: 2, name: "Mobile App", color: "#8b5cf6", progress: 45, files: [], timeline: [] },
     { id: 3, name: "API Integration", color: "#f59e0b", progress: 90, files: [
       { id: "3", name: "api-docs.md", type: "document" },
-    ]},
+    ], timeline: [] },
   ];
   
   const [projects, setProjects] = useLocalStorage<Project[]>("projects", defaultProjects);
@@ -40,6 +49,9 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState<"timeline" | "files">("timeline");
+  const [noteInput, setNoteInput] = useState("");
+  const [fileUrlInput, setFileUrlInput] = useState("");
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   const addProject = () => {
     if (!newProject.name.trim()) return;
@@ -51,6 +63,7 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
         color: newProject.color,
         progress: 0,
         files: [],
+        timeline: [],
       },
     ]);
     setNewProject({ name: "", color: "#06b6d4" });
@@ -62,8 +75,32 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
     if (selectedProject?.id === id) setSelectedProject(null);
   };
 
-  const addFileToProject = (projectId: number) => {
-    const fileName = prompt("Enter file name:");
+  const addNoteToTimeline = (projectId: number) => {
+    if (!noteInput.trim()) return;
+    
+    const newNote: TimelineNote = {
+      id: Date.now().toString(),
+      content: noteInput,
+      timestamp: Date.now(),
+    };
+
+    setProjects(projects.map(p => 
+      p.id === projectId 
+        ? { ...p, timeline: [...p.timeline, newNote] }
+        : p
+    ));
+    
+    if (selectedProject?.id === projectId) {
+      setSelectedProject({
+        ...selectedProject,
+        timeline: [...selectedProject.timeline, newNote]
+      });
+    }
+    
+    setNoteInput("");
+  };
+
+  const addFileToProject = (projectId: number, fileName: string, fileUrl?: string, isLinked?: boolean) => {
     if (!fileName) return;
     
     const extension = fileName.split(".").pop()?.toLowerCase();
@@ -71,18 +108,55 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
     if (["pdf", "doc", "docx", "txt", "md"].includes(extension || "")) fileType = "document";
     if (["png", "jpg", "jpeg", "gif", "svg"].includes(extension || "")) fileType = "image";
 
+    const newFile: FileAttachment = {
+      id: Date.now().toString(),
+      name: fileName,
+      type: fileType,
+      url: fileUrl,
+      linked: isLinked,
+    };
+
     setProjects(projects.map(p => 
       p.id === projectId 
-        ? { ...p, files: [...p.files, { id: Date.now().toString(), name: fileName, type: fileType }] }
+        ? { ...p, files: [...p.files, newFile] }
         : p
     ));
     
     if (selectedProject?.id === projectId) {
       setSelectedProject({
         ...selectedProject,
-        files: [...selectedProject.files, { id: Date.now().toString(), name: fileName, type: fileType }]
+        files: [...selectedProject.files, newFile]
       });
     }
+  };
+
+  const handleAddFileClick = () => {
+    setShowLinkModal(true);
+  };
+
+  const handleManualFileSubmit = () => {
+    if (!selectedProject) return;
+    const fileName = prompt("Enter file name:");
+    if (!fileName) return;
+    addFileToProject(selectedProject.id, fileName);
+    setShowLinkModal(false);
+  };
+
+  const handleLinkFileSubmit = () => {
+    if (!selectedProject || !fileUrlInput.trim()) return;
+    
+    const urlFileName = fileUrlInput.split("/").pop() || "linked-file";
+    addFileToProject(selectedProject.id, urlFileName, fileUrlInput, true);
+    setFileUrlInput("");
+    setShowLinkModal(false);
+  };
+
+  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProject || !e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    addFileToProject(selectedProject.id, file.name);
+    setShowLinkModal(false);
   };
 
   const removeFileFromProject = (projectId: number, fileId: string) => {
@@ -237,7 +311,7 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
           </div>
 
           {activeTab === "timeline" && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div
                   className="flex-1 h-2 rounded-full overflow-hidden"
@@ -257,11 +331,52 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
                   {selectedProject.progress}%
                 </span>
               </div>
-              <p
-                className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-600"}`}
-              >
-                Project timeline and milestones will be displayed here.
-              </p>
+              
+              <div className="space-y-2 mt-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder="Add a note to the timeline..."
+                    className={`flex-1 ${
+                      darkMode
+                        ? "bg-slate-700 border-cyan-500/30 text-white"
+                        : "bg-slate-50 border-blue-200 text-slate-800"
+                    }`}
+                    onKeyDown={(e) => e.key === "Enter" && addNoteToTimeline(selectedProject.id)}
+                  />
+                  <Button
+                    onClick={() => addNoteToTimeline(selectedProject.id)}
+                    className={`${
+                      darkMode
+                        ? "bg-cyan-500 hover:bg-cyan-600"
+                        : "bg-blue-500 hover:bg-blue-600"
+                    } text-white`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {selectedProject.timeline.length > 0 && (
+                  <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                    {selectedProject.timeline.map((note) => (
+                      <div
+                        key={note.id}
+                        className={`p-3 rounded-lg ${
+                          darkMode ? "bg-slate-700" : "bg-slate-200"
+                        }`}
+                      >
+                        <p className={`text-sm ${darkMode ? "text-white" : "text-slate-800"}`}>
+                          {note.content}
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          {new Date(note.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -277,13 +392,26 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
                   <span className={darkMode ? "text-cyan-400" : "text-blue-500"}>
                     {getFileIcon(file.type)}
                   </span>
-                  <span
-                    className={`flex-1 text-sm ${
-                      darkMode ? "text-white" : "text-slate-800"
-                    }`}
-                  >
-                    {file.name}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span
+                      className={`text-sm block truncate ${
+                        darkMode ? "text-white" : "text-slate-800"
+                      }`}
+                    >
+                      {file.name}
+                    </span>
+                    {file.linked && file.url && (
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-xs ${darkMode ? "text-cyan-400" : "text-blue-500"} hover:underline`}
+                      >
+                        <LinkIcon className="w-3 h-3 inline mr-1" />
+                        Open Link
+                      </a>
+                    )}
+                  </div>
                   <Button
                     onClick={() => removeFileFromProject(selectedProject.id, file.id)}
                     className="p-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30"
@@ -293,7 +421,7 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
                 </div>
               ))}
               <Button
-                onClick={() => addFileToProject(selectedProject.id)}
+                onClick={() => handleAddFileClick()}
                 className={`w-full py-2 rounded text-sm ${
                   darkMode
                     ? "bg-slate-700 hover:bg-slate-600 text-cyan-400"
@@ -304,6 +432,103 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
                 Add File
               </Button>
             </div>
+          )}
+          
+          {showLinkModal && selectedProject && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              onClick={() => setShowLinkModal(false)}
+            >
+              <div
+                className={`p-6 rounded-lg w-full max-w-md ${
+                  darkMode ? "bg-slate-800" : "bg-white"
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h4 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                  Add File to {selectedProject.name}
+                </h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <button
+                      onClick={handleManualFileSubmit}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 ${
+                        darkMode
+                          ? "bg-slate-700 hover:bg-slate-600 text-white"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                      }`}
+                    >
+                      <FileText className="w-5 h-5" />
+                      <span>Enter file name manually</span>
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className={`block text-sm mb-2 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                      Or upload a file
+                    </label>
+                    <label
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 cursor-pointer ${
+                        darkMode
+                          ? "bg-slate-700 hover:bg-slate-600 text-white"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                      }`}
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span>Upload from computer</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadFile}
+                      />
+                    </label>
+                  </div>
+                  
+                  <div>
+                    <label className={`block text-sm mb-2 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                      Or link to a URL
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={fileUrlInput}
+                        onChange={(e) => setFileUrlInput(e.target.value)}
+                        placeholder="https://example.com/file.pdf"
+                        className={`flex-1 ${
+                          darkMode
+                            ? "bg-slate-700 border-cyan-500/30 text-white"
+                            : "bg-slate-50 border-blue-200 text-slate-800"
+                        }`}
+                      />
+                      <Button
+                        onClick={handleLinkFileSubmit}
+                        disabled={!fileUrlInput.trim()}
+                        className={`${
+                          darkMode
+                            ? "bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600"
+                            : "bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300"
+                        } text-white`}
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={() => setShowLinkModal(false)}
+                  className={`mt-4 w-full ${
+                    darkMode
+                      ? "bg-slate-700 hover:bg-slate-600 text-white"
+                      : "bg-slate-200 hover:bg-slate-300 text-slate-800"
+                  }`}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </motion.div>
           )}
         </motion.div>
       )}
