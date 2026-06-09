@@ -35,10 +35,10 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
     setIsLoading(true);
     
     try {
-      // Use YouTube's RSS feed API to get search results
-      const response = await fetch(
-        `https://www.youtube.com/feeds/videos.xml?q=${encodeURIComponent(searchQuery)}`
-      );
+      // Use a CORS proxy to access YouTube's RSS feed API
+      const corsProxy = 'https://api.allorigins.win/raw?url=';
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?q=${encodeURIComponent(searchQuery)}`;
+      const response = await fetch(corsProxy + encodeURIComponent(rssUrl));
       
       if (response.ok) {
         const text = await response.text();
