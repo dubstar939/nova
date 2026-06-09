@@ -51,8 +51,20 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   }, [volume, isMuted]);
 
   useEffect(() => {
-    if (isPlaying && audioRef.current) {
+    if (audioRef.current) {
       audioRef.current.src = stations[selectedStation].url;
+      if (isPlaying) {
+        audioRef.current.load();
+        audioRef.current.play().catch((err) => {
+          console.error("Error playing station:", err);
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, [selectedStation, stations]);
+
+  useEffect(() => {
+    if (isPlaying && audioRef.current) {
       audioRef.current.play().catch((err) => {
         console.error("Error playing station:", err);
         setIsPlaying(false);
@@ -60,7 +72,7 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     } else if (audioRef.current) {
       audioRef.current.pause();
     }
-  }, [isPlaying, selectedStation, stations]);
+  }, [isPlaying]);
 
   useEffect(() => {
     if (isPlaying && !isMuted) {
