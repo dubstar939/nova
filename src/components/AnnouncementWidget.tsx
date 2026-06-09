@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Megaphone } from "lucide-react";
 import { Button } from "./ui/button";
@@ -17,22 +18,7 @@ interface Announcement {
 }
 
 export default function AnnouncementWidget({ darkMode }: AnnouncementWidgetProps) {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    {
-      id: 1,
-      message: "Team meeting scheduled for Friday at 3 PM",
-      author: "Admin",
-      timestamp: "2 hours ago",
-      priority: "medium",
-    },
-    {
-      id: 2,
-      message: "New project guidelines have been uploaded",
-      author: "Manager",
-      timestamp: "5 hours ago",
-      priority: "high",
-    },
-  ]);
+  const [announcements, setAnnouncements] = useLocalStorage<Announcement[]>("announcements", []);
   const [newMessage, setNewMessage] = useState("");
   const [newAuthor, setNewAuthor] = useState("");
   const [newPriority, setNewPriority] = useState<"low" | "medium" | "high">("medium");
