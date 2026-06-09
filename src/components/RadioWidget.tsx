@@ -11,15 +11,16 @@ interface Station {
   name: string;
   genre: string;
   frequency: string;
+  url: string;
 }
 
 export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   const [stations] = useState<Station[]>([
-    { name: "Jazz FM", genre: "Jazz", frequency: "101.5" },
-    { name: "Classical Radio", genre: "Classical", frequency: "92.3" },
-    { name: "Lo-Fi Beats", genre: "Lo-Fi", frequency: "Online" },
-    { name: "Rock Station", genre: "Rock", frequency: "105.7" },
-    { name: "Electronic Wave", genre: "Electronic", frequency: "98.1" },
+    { name: "Jazz FM", genre: "Jazz", frequency: "101.5", url: "https://stream.zeno.fm/f3bVV7qVF6ZUV" },
+    { name: "Classical Radio", genre: "Classical", frequency: "92.3", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_three" },
+    { name: "Lo-Fi Beats", genre: "Lo-Fi", frequency: "Online", url: "https://stream.zeno.fm/0r5xa8g1v4zuv" },
+    { name: "Rock Station", genre: "Rock", frequency: "105.7", url: "https://stream.zeno.fm/rq4xV7qVF6ZUV" },
+    { name: "Electronic Wave", genre: "Electronic", frequency: "98.1", url: "https://stream.zeno.fm/vf3bV7qVF6ZUV" },
   ]);
   const [selectedStation, setSelectedStation] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -29,6 +30,37 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     Array(20).fill(5)
   );
   const animationRef = useRef<number>();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.volume = volume / 100;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume / 100;
+    }
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (isPlaying && audioRef.current) {
+      audioRef.current.src = stations[selectedStation].url;
+      audioRef.current.play().catch((err) => {
+        console.error("Error playing station:", err);
+        setIsPlaying(false);
+      });
+    } else if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, selectedStation, stations]);
 
   useEffect(() => {
     if (isPlaying && !isMuted) {
@@ -36,7 +68,7 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
         setVisualizerBars(
           Array(20)
             .fill(0)
-            .map(() => Math.random() * 50 + 5)
+            .map(() => Math.random() * 30 + 10)
         );
         animationRef.current = requestAnimationFrame(animate);
       };

@@ -1,15 +1,8 @@
 ```
-# Dependencies
-node_modules/
-
 # Build artifacts
 dist/
 build/
 
-# Compiled files
-*.pyc
-__pycache__/
-
-# Editors
-.vite/
+# Dependencies
+node_modules/
 ```
