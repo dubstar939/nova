@@ -3,6 +3,7 @@ import { Sun, Moon, Search, Plus, X, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface HeaderProps {
   darkMode: boolean;
@@ -19,7 +20,7 @@ interface QuickLink {
 export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
-  const [quickLinks, setQuickLinks] = useState<QuickLink[]>([]);
+  const [quickLinks, setQuickLinks] = useLocalStorage<QuickLink[]>("quickLinks", []);
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -40,14 +41,14 @@ export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderP
 
   const addQuickLink = () => {
     if (!newLinkName.trim() || !newLinkUrl.trim()) return;
-    setQuickLinks([...quickLinks, { id: Date.now(), name: newLinkName, url: newLinkUrl }]);
+    setQuickLinks((prev) => [...prev, { id: Date.now(), name: newLinkName, url: newLinkUrl }]);
     setNewLinkName("");
     setNewLinkUrl("");
     setIsAddingLink(false);
   };
 
   const removeQuickLink = (id: number) => {
-    setQuickLinks(quickLinks.filter(link => link.id !== id));
+    setQuickLinks((prev) => prev.filter(link => link.id !== id));
   };
 
   return (
