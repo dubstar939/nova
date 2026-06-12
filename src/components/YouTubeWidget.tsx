@@ -21,6 +21,25 @@ const defaultVideos: Video[] = [
   { id: "9bZkp7q19f0", title: "PSY - GANGNAM STYLE", thumbnail: "" },
 ];
 
+// Alternative video sources for search fallback
+const fallbackVideos: Record<string, Video[]> = {
+  music: [
+    { id: "kJQP7kiw5Fk", title: "Luis Fonsi - Despacito", thumbnail: "" },
+    { id: "JGwWNGJdvx8", title: "Ed Sheeran - Shape of You", thumbnail: "" },
+    { id: "RgKAFK5djSk", title: "Wiz Khalifa - See You Again", thumbnail: "" },
+  ],
+  gaming: [
+    { id: "M7FIvfx5J10", title: "Gaming Highlights", thumbnail: "" },
+    { id: "hTWKbfoikeg", title: "Nirvana - Smells Like Teen Spirit", thumbnail: "" },
+    { id: "fJ9rUzIMcZQ", title: "Queen - Bohemian Rhapsody", thumbnail: "" },
+  ],
+  tech: [
+    { id: "tO01J-M3g0U", title: "Tech Review", thumbnail: "" },
+    { id: "y6120QOlsfU", title: "Darude - Sandstorm", thumbnail: "" },
+    { id: "ZZ5LpwO-An4", title: "HEYYEYAAEYAAAEYAEYAA", thumbnail: "" },
+  ],
+};
+
 export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [videos, setVideos] = useState<Video[]>(defaultVideos);
@@ -30,44 +49,117 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    console.log("Search triggered with query:", searchQuery);
+    if (!searchQuery.trim()) {
+      console.log("Empty search query, returning");
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      // Use a CORS proxy to access YouTube's RSS feed API
-      const corsProxy = 'https://api.allorigins.win/raw?url=';
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?q=${encodeURIComponent(searchQuery)}`;
-      const response = await fetch(corsProxy + encodeURIComponent(rssUrl));
+      // Use YouTube's InnerTube API directly
+      const apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+      const searchUrl = `https://www.youtube.com/youtubei/v1/search?key=${apiKey}`;
+      
+      const requestBody = {
+        context: {
+          client: {
+            hl: "en",
+            gl: "US",
+            clientName: "WEB",
+            clientVersion: "2.20260611.01.00"
+          }
+        },
+        query: searchQuery
+      };
+      
+      console.log("Fetching from URL:", searchUrl);
+      const response = await fetch(searchUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      console.log("Response status:", response.status);
       
       if (response.ok) {
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, "text/xml");
-        const entries = xml.querySelectorAll("entry");
+        const data = await response.json();
+        console.log("Response received");
         
-        const searchResults: Video[] = Array.from(entries).slice(0, 9).map((entry) => {
-          const videoId = entry.querySelector("id")?.textContent?.split(":")[2] || "";
-          const title = entry.querySelector("title")?.textContent || "";
-          return {
-            id: videoId,
-            title: title,
-            thumbnail: "",
-          };
-        }).filter(v => v.id !== "");
+        // Parse the InnerTube response
+        const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
+        let results: Video[] = [];
         
-        if (searchResults.length > 0) {
-          setVideos(searchResults);
+        if (contents && Array.isArray(contents)) {
+          for (const section of contents) {
+            const itemSection = section.itemSectionRenderer?.contents;
+            if (itemSection && Array.isArray(itemSection)) {
+              for (const item of itemSection) {
+                const videoRenderer = item.videoRenderer;
+                if (videoRenderer) {
+                  const videoId = videoRenderer.videoId;
+                  const title = videoRenderer.title?.runs?.[0]?.text || "";
+                  if (videoId) {
+                    results.push({
+                      id: videoId,
+                      title: title,
+                      thumbnail: ""
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        console.log(`Found ${results.length} videos`);
+        
+        if (results.length > 0) {
+          setVideos(results.slice(0, 9));
         } else {
-          // Fallback: use default videos if no results
-          setVideos(defaultVideos);
+          // Check if query matches any fallback category
+          const queryLower = searchQuery.toLowerCase();
+          let fallbackResults: Video[] = [];
+          
+          for (const [category, videos] of Object.entries(fallbackVideos)) {
+            if (queryLower.includes(category)) {
+              fallbackResults = videos;
+              break;
+            }
+          }
+          
+          if (fallbackResults.length > 0) {
+            console.log("Using category fallback videos");
+            setVideos(fallbackResults);
+          } else {
+            console.log("No results found, using default videos");
+            setVideos(defaultVideos);
+          }
         }
       } else {
-        setVideos(defaultVideos);
+        console.log("Response not ok, checking fallback");
+        // Check if query matches any fallback category
+        const queryLower = searchQuery.toLowerCase();
+        for (const [category, videos] of Object.entries(fallbackVideos)) {
+          if (queryLower.includes(category)) {
+            setVideos(videos);
+            break;
+          }
+        }
       }
     } catch (error) {
       console.error("Search error:", error);
-      setVideos(defaultVideos);
+      // Check if query matches any fallback category even on error
+      const queryLower = searchQuery.toLowerCase();
+      for (const [category, videos] of Object.entries(fallbackVideos)) {
+        if (queryLower.includes(category)) {
+          setVideos(videos);
+          break;
+        }
+      }
     } finally {
       setIsLoading(false);
     }
