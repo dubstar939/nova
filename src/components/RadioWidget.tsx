@@ -16,11 +16,15 @@ interface Station {
 
 export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   const [stations] = useState<Station[]>([
-    { name: "Jazz FM", genre: "Jazz", frequency: "101.5", url: "https://stream.zeno.fm/f3bVV7qVF6ZUV" },
-    { name: "Classical Radio", genre: "Classical", frequency: "92.3", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_three" },
+    { name: "Jazz FM", genre: "Jazz", frequency: "102.2", url: "https://stream.zeno.fm/f3bVV7qVF6ZUV" },
+    { name: "Classical Radio", genre: "Classical", frequency: "Online", url: "https://media-ssl.musicradio.com/ClassicFM" },
     { name: "Lo-Fi Beats", genre: "Lo-Fi", frequency: "Online", url: "https://stream.zeno.fm/0r5xa8g1v4zuv" },
-    { name: "Rock Station", genre: "Rock", frequency: "105.7", url: "https://stream.zeno.fm/rq4xV7qVF6ZUV" },
+    { name: "Rock Station", genre: "Rock", frequency: "95.5", url: "https://stream.zeno.fm/rq4xV7qVF6ZUV" },
     { name: "Electronic Wave", genre: "Electronic", frequency: "98.1", url: "https://stream.zeno.fm/vf3bV7qVF6ZUV" },
+    { name: "BBC News", genre: "News", frequency: "Online", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service" },
+    { name: "ESPN Radio", genre: "Sports", frequency: "Online", url: "https://stream.zeno.fm/sportsradio" },
+    { name: "Chillhop", genre: "Chill hop", frequency: "Online", url: "https://stream.zeno.fm/chillhop" },
+    { name: "Dubstep FM", genre: "Dubstep", frequency: "Online", url: "https://stream.zeno.fm/dubstep" },
   ]);
   const [selectedStation, setSelectedStation] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
