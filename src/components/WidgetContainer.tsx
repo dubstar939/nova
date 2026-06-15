@@ -45,20 +45,38 @@ export default function WidgetContainer({
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const containerBounds = { maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000, maxY: 1200 - minSize.height };
+  const [containerBounds, setContainerBounds] = useState({ maxX: 0, maxY: 0 });
 
-  // Sync with parent state changes
+  // Calculate container bounds dynamically
   useEffect(() => {
-    if (initialPosition.x !== position.x || initialPosition.y !== position.y) {
+    const updateBounds = () => {
+      if (typeof window !== 'undefined') {
+        setContainerBounds({
+          maxX: window.innerWidth - minSize.width,
+          maxY: Math.max(1200, window.innerHeight - 100) - minSize.height,
+        });
+      }
+    };
+
+    updateBounds();
+    window.addEventListener('resize', updateBounds);
+    return () => window.removeEventListener('resize', updateBounds);
+  }, [minSize.width, minSize.height]);
+
+  // Sync with parent state changes - only when not actively dragging/resizing
+  useEffect(() => {
+    const posChanged = initialPosition.x !== position.x || initialPosition.y !== position.y;
+    if (posChanged && !isDragging) {
       setPosition(initialPosition);
     }
-  }, [initialPosition.x, initialPosition.y]);
+  }, [initialPosition.x, initialPosition.y, isDragging, position.x, position.y]);
 
   useEffect(() => {
-    if (initialSize?.width !== size.width || initialSize?.height !== size.height) {
+    const sizeChanged = initialSize?.width !== size.width || initialSize?.height !== size.height;
+    if (sizeChanged && !isResizing) {
       setSize(initialSize || { width: minSize.width, height: minSize.height });
     }
-  }, [initialSize?.width, initialSize?.height]);
+  }, [initialSize?.width, initialSize?.height, isResizing, size.width, size.height, minSize.width, minSize.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
@@ -105,6 +123,30 @@ export default function WidgetContainer({
       }
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // Prevent scroll interference
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+
+      if (isDragging) {
+        const newPosition = {
+          x: Math.max(0, Math.min(clientX - dragOffset.x, containerBounds.maxX)),
+          y: Math.max(0, Math.min(clientY - dragOffset.y, containerBounds.maxY)),
+        };
+        setPosition(newPosition);
+        onPositionChange?.(id, newPosition);
+      }
+
+      if (isResizing && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const newWidth = Math.max(minSize.width, clientX - rect.left);
+        const newHeight = Math.max(minSize.height, clientY - rect.top);
+        const newSize = { width: newWidth, height: newHeight };
+        setSize(newSize);
+        onSizeChange?.(id, newSize);
+      }
+    };
+
     const handleMouseUp = () => {
       setIsDragging(false);
       setIsResizing(false);
@@ -113,11 +155,15 @@ export default function WidgetContainer({
     if (isDragging || isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleMouseUp);
     }
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleMouseUp);
     };
   }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange, containerBounds]);
 

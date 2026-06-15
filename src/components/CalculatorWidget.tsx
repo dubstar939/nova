@@ -26,15 +26,31 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
         .replace(/÷/g, "/")
         .replace(/−/g, "-");
       
-      // Validate expression contains only safe characters
+      // Validate expression contains only safe characters (strict whitelist)
       if (!/^[\d+\-*/().\s]+$/.test(sanitized)) {
         setDisplay("Error");
         setEquation("");
         return;
       }
       
-      const result = Function('"use strict"; return (' + sanitized + ")")();
-      setDisplay(String(parseFloat(result.toFixed(10))));
+      // Additional safety: limit expression length to prevent complex attacks
+      if (sanitized.length > 100) {
+        setDisplay("Error");
+        setEquation("");
+        return;
+      }
+      
+      // Safe evaluation using Function constructor with strict validation
+      // The regex above ensures only mathematical operators and numbers are allowed
+      const safeEval = new Function('return (' + sanitized + ')');
+      const result = safeEval();
+      
+      // Validate result is a finite number
+      if (!isFinite(result) || isNaN(result)) {
+        setDisplay("Error");
+      } else {
+        setDisplay(String(parseFloat(result.toFixed(10))));
+      }
       setEquation("");
     } catch {
       setDisplay("Error");
