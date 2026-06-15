@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { GripVertical } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ interface WidgetContainerProps {
   id: string;
   onPositionChange?: (id: string, position: { x: number; y: number }) => void;
   onSizeChange?: (id: string, size: { width: number; height: number }) => void;
+  onRemove?: () => void;
 }
 
 interface Position {
@@ -34,6 +35,7 @@ export default function WidgetContainer({
   id,
   onPositionChange,
   onSizeChange,
+  onRemove,
 }: WidgetContainerProps) {
   const [position, setPosition] = useState<Position>(initialPosition);
   const [size, setSize] = useState<Size>(
@@ -174,6 +176,23 @@ export default function WidgetContainer({
               {title}
             </h3>
           </div>
+          {onRemove && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className={`p-1.5 rounded-lg transition-all ${
+                darkMode
+                  ? "hover:bg-red-500/20 text-slate-400 hover:text-red-400"
+                  : "hover:bg-red-50 text-slate-500 hover:text-red-500"
+              }`}
+              title={`Remove ${title} widget from dashboard`}
+              aria-label={`Remove ${title} widget`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto p-4">{children}</div>

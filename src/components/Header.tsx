@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -9,6 +9,7 @@ interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   onResetLayout?: () => void;
+  onManageWidgets?: () => void;
 }
 
 interface QuickLink {
@@ -17,7 +18,7 @@ interface QuickLink {
   url: string;
 }
 
-export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderProps) {
+export default function Header({ darkMode, setDarkMode, onResetLayout, onManageWidgets }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
   const [quickLinks, setQuickLinks] = useLocalStorage<QuickLink[]>("quickLinks", []);
@@ -220,6 +221,19 @@ export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderP
             animate={{ x: 0, opacity: 1 }}
             className="flex items-center gap-3"
           >
+            {onManageWidgets && (
+              <Button
+                onClick={onManageWidgets}
+                className={`relative overflow-hidden ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
+                    : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                }`}
+                title="Add or remove widgets from dashboard"
+              >
+                <LayoutGrid className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
+              </Button>
+            )}
             {onResetLayout && (
               <Button
                 onClick={onResetLayout}
