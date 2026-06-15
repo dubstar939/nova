@@ -51,37 +51,41 @@ export default function WidgetContainer({
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Use refs to track if we should sync from parent (to avoid loops)
+  const syncedPositionRef = useRef(initialPosition);
+  const syncedSizeRef = useRef(initialSize);
+  
   // Memoize container bounds to prevent recalculation on every render
   const containerBounds = useMemo(() => ({
     maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000,
     maxY: WIDGET_CONFIG.DEFAULT_CONTAINER_HEIGHT - minSize.height,
   }), [minSize.width, minSize.height]);
 
-  // Sync with parent state changes - only update if values actually differ
+  // Sync with parent state changes - only update if values actually differ significantly
   useEffect(() => {
-    if (
-      initialPosition.x !== position.x || 
-      initialPosition.y !== position.y
-    ) {
+    const posDiff = Math.abs(initialPosition.x - syncedPositionRef.current.x) + 
+                    Math.abs(initialPosition.y - syncedPositionRef.current.y);
+    if (posDiff > 0.1) {
+      syncedPositionRef.current = initialPosition;
       setPosition(initialPosition);
     }
-    // Only depend on initialPosition object reference, not individual properties
-  }, [initialPosition]);
+  }, [initialPosition.x, initialPosition.y]);
 
   useEffect(() => {
-    if (
-      initialSize?.width !== size.width || 
-      initialSize?.height !== size.height
-    ) {
-      setSize(initialSize || { width: minSize.width, height: minSize.height });
+    const sizeDiff = initialSize && (
+      Math.abs(initialSize.width - (syncedSizeRef.current?.width || 0)) + 
+      Math.abs(initialSize.height - (syncedSizeRef.current?.height || 0))
+    );
+    if (sizeDiff && sizeDiff > 0.1) {
+      syncedSizeRef.current = initialSize;
+      setSize(initialSize);
     }
-    // Only depend on initialSize object reference
-  }, [initialSize, minSize.width, minSize.height]);
+  }, [initialSize?.width, initialSize?.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
-    const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
-    const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+    const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
     
     if (target.closest(".resize-handle")) return;
     
@@ -105,8 +109,8 @@ export default function WidgetContainer({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       if (isDragging) {
-        const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
-        const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+        const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+        const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
         
         const newPosition = {
           x: Math.max(0, Math.min(clientX - dragOffset.x, containerBounds.maxX)),
@@ -117,8 +121,8 @@ export default function WidgetContainer({
       }
 
       if (isResizing && containerRef.current) {
-        const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
-        const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+        const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+        const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
         
         const rect = containerRef.current.getBoundingClientRect();
         const newWidth = Math.max(minSize.width, clientX - rect.left);
@@ -135,11 +139,11 @@ export default function WidgetContainer({
     };
 
     if (isDragging || isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      // Add touch event listeners for mobile support
+      document.addEventListener("mousemove", handleMouseMove, { passive: true });
+      document.addEventListener("mouseup", handleMouseUp, { passive: true });
+      // Add touch event listeners for mobile support with passive:false for preventDefault
       document.addEventListener("touchmove", handleMouseMove, { passive: false });
-      document.addEventListener("touchend", handleMouseUp);
+      document.addEventListener("touchend", handleMouseUp, { passive: true });
     }
 
     return () => {

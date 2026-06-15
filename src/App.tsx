@@ -13,6 +13,7 @@ import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
 // Constants for widget layout configuration
@@ -100,27 +101,18 @@ interface WidgetState {
   minSize: { width: number; height: number };
 }
 
-function App() {
+// Main app content component that uses theme context
+function AppContent() {
   const [isClient, setIsClient] = useState(false);
   
-  // Use custom hook for persistent dark mode and widget layout
-  const [darkMode, setDarkMode] = useLocalStorage<boolean>("darkMode", true);
+  // Use custom hook for persistent widget layout (theme is handled by context)
   const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", WIDGET_LAYOUT.DEFAULT_WIDGETS);
+  const { darkMode } = useTheme();
 
   // Initialize client-side only features
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  // Apply dark mode class to document
-  useEffect(() => {
-    if (!isClient) return;
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode, isClient]);
 
   const handleResetLayout = useCallback(() => {
     setWidgets(WIDGET_LAYOUT.DEFAULT_WIDGETS);
@@ -181,41 +173,49 @@ function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <div
-        className={`min-h-screen ${
-          darkMode ? "bg-slate-950" : "bg-slate-100"
-        } transition-colors duration-500`}
-      >
-        <ParticleBackground darkMode={darkMode} />
-        <div className="relative z-10">
-          <Header darkMode={darkMode} setDarkMode={setDarkMode} onResetLayout={handleResetLayout} />
+    <div
+      className={`min-h-screen ${
+        darkMode ? "bg-slate-950" : "bg-slate-100"
+      } transition-colors duration-500`}
+    >
+      <ParticleBackground darkMode={darkMode} />
+      <div className="relative z-10">
+        <Header darkMode={darkMode} onResetLayout={handleResetLayout} />
 
-          <main 
-            className="relative w-full" 
-            style={{ height: `${WIDGET_LAYOUT.CONTAINER_HEIGHT}px` }}
-            role="main"
-            aria-label="Dashboard widgets"
-          >
-            {widgets.map((widget) => (
-              <WidgetContainer
-                key={widget.id}
-                id={widget.id}
-                title={widget.title}
-                darkMode={darkMode}
-                initialPosition={widget.position}
-                initialSize={widget.size}
-                minSize={widget.minSize}
-                onPositionChange={handlePositionChange}
-                onSizeChange={handleSizeChange}
-              >
-                {renderWidget(widget.id, darkMode)}
-              </WidgetContainer>
-            ))}
-          </main>
-        </div>
+        <main 
+          className="relative w-full" 
+          style={{ height: `${WIDGET_LAYOUT.CONTAINER_HEIGHT}px` }}
+          role="main"
+          aria-label="Dashboard widgets"
+        >
+          {widgets.map((widget) => (
+            <WidgetContainer
+              key={widget.id}
+              id={widget.id}
+              title={widget.title}
+              darkMode={darkMode}
+              initialPosition={widget.position}
+              initialSize={widget.size}
+              minSize={widget.minSize}
+              onPositionChange={handlePositionChange}
+              onSizeChange={handleSizeChange}
+            >
+              {renderWidget(widget.id, darkMode)}
+            </WidgetContainer>
+          ))}
+        </main>
       </div>
-    </ErrorBoundary>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 }
 

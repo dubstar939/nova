@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface HeaderProps {
   darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
   onResetLayout?: () => void;
 }
 
@@ -17,7 +17,8 @@ interface QuickLink {
   url: string;
 }
 
-export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderProps) {
+export default function Header({ darkMode, onResetLayout }: HeaderProps) {
+  const { toggleDarkMode } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
   const [quickLinks, setQuickLinks] = useLocalStorage<QuickLink[]>("quickLinks", []);
@@ -234,7 +235,7 @@ export default function Header({ darkMode, setDarkMode, onResetLayout }: HeaderP
               </Button>
             )}
             <Button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleDarkMode}
               className={`relative overflow-hidden ${
                 darkMode
                   ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
