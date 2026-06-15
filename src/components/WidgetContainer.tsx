@@ -7,7 +7,13 @@ const WIDGET_CONFIG = {
   DEFAULT_CONTAINER_HEIGHT: 1200,
   MIN_WIDGET_WIDTH: 300,
   MIN_WIDGET_HEIGHT: 200,
+  KEYBOARD_STEP: 10,
 };
+
+// Check for reduced motion preference
+const prefersReducedMotion = typeof window !== 'undefined' 
+  ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
+  : false;
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -49,6 +55,7 @@ export default function WidgetContainer({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  const [isFocused, setIsFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Use refs to track if we should sync from parent (to avoid loops)
@@ -155,11 +162,49 @@ export default function WidgetContainer({
     };
   }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange, containerBounds]);
 
+  // Keyboard navigation for widgets
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isFocused) return;
+      
+      let newX = position.x;
+      let newY = position.y;
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          newY = Math.max(0, position.y - WIDGET_CONFIG.KEYBOARD_STEP);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          newY = Math.min(position.y + WIDGET_CONFIG.KEYBOARD_STEP, containerBounds.maxY);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          newX = Math.max(0, position.x - WIDGET_CONFIG.KEYBOARD_STEP);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          newX = Math.min(position.x + WIDGET_CONFIG.KEYBOARD_STEP, containerBounds.maxX);
+          break;
+        default:
+          return;
+      }
+      
+      setPosition({ x: newX, y: newY });
+      onPositionChange?.(id, { x: newX, y: newY });
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFocused, position, id, onPositionChange, containerBounds]);
+
   return (
     <motion.div
       ref={containerRef}
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
+      transition={prefersReducedMotion ? { duration: 0 } : undefined}
       style={{
         position: "absolute",
         left: position.x,
@@ -169,9 +214,12 @@ export default function WidgetContainer({
         zIndex: isDragging || isResizing ? 50 : 10,
         touchAction: isDragging || isResizing ? 'none' : 'auto',
       }}
-      className={`${isDragging ? "cursor-grabbing" : ""}`}
+      className={`${isDragging ? "cursor-grabbing" : ""} ${isFocused ? "ring-2 ring-cyan-400" : ""}`}
       role="region"
       aria-label={`${title} widget`}
+      tabIndex={0}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
     >
       <div
         className={`w-full h-full rounded-2xl border overflow-hidden flex flex-col ${

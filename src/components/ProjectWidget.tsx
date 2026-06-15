@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, X, FileText, Image, File, Check, MessageSquare, Link as LinkIcon, Upload } from "lucide-react";
 import { Button } from "./ui/button";
@@ -52,6 +52,8 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
   const [noteInput, setNoteInput] = useState("");
   const [fileUrlInput, setFileUrlInput] = useState("");
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
   const addProject = () => {
     if (!newProject.name.trim()) return;
@@ -131,8 +133,62 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
   };
 
   const handleAddFileClick = () => {
+    previousActiveElement.current = document.activeElement as HTMLElement;
     setShowLinkModal(true);
   };
+
+  const handleCloseModal = useCallback(() => {
+    setShowLinkModal(false);
+    // Return focus to the previously focused element
+    if (previousActiveElement.current) {
+      previousActiveElement.current.focus();
+    }
+  }, []);
+
+  // Focus trap for modal accessibility
+  useEffect(() => {
+    if (!showLinkModal) return;
+
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    // Focus the first focusable element in the modal
+    const focusableElements = modal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    // Set initial focus
+    setTimeout(() => firstElement?.focus(), 100);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCloseModal();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showLinkModal, handleCloseModal]);
 
   const handleManualFileSubmit = () => {
     if (!selectedProject) return;
@@ -439,15 +495,19 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-              onClick={() => setShowLinkModal(false)}
+              onClick={handleCloseModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
             >
               <div
+                ref={modalRef}
                 className={`p-6 rounded-lg w-full max-w-md ${
                   darkMode ? "bg-slate-800" : "bg-white"
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <h4 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                <h4 id="modal-title" className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-800"}`}>
                   Add File to {selectedProject.name}
                 </h4>
                 
@@ -518,7 +578,7 @@ export default function ProjectWidget({ darkMode }: ProjectWidgetProps) {
                 </div>
                 
                 <Button
-                  onClick={() => setShowLinkModal(false)}
+                  onClick={handleCloseModal}
                   className={`mt-4 w-full ${
                     darkMode
                       ? "bg-slate-700 hover:bg-slate-600 text-white"
