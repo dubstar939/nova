@@ -12,7 +12,85 @@ import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+
+// Constants for widget layout configuration
+const WIDGET_LAYOUT = {
+  CONTAINER_HEIGHT: 1200,
+  DEFAULT_WIDGETS: [
+    {
+      id: "time",
+      title: "Time & Calendar",
+      position: { x: 20, y: 100 },
+      size: { width: 500, height: 320 },
+      minSize: { width: 400, height: 300 },
+    },
+    {
+      id: "weather",
+      title: "Weather",
+      position: { x: 540, y: 100 },
+      size: { width: 380, height: 240 },
+      minSize: { width: 300, height: 200 },
+    },
+    {
+      id: "youtube",
+      title: "YouTube",
+      position: { x: 940, y: 100 },
+      size: { width: 360, height: 360 },
+      minSize: { width: 320, height: 300 },
+    },
+    {
+      id: "todo",
+      title: "To-Do List",
+      position: { x: 20, y: 440 },
+      size: { width: 380, height: 340 },
+      minSize: { width: 300, height: 250 },
+    },
+    {
+      id: "projects",
+      title: "Projects",
+      position: { x: 420, y: 440 },
+      size: { width: 360, height: 340 },
+      minSize: { width: 300, height: 300 },
+    },
+    {
+      id: "announcements",
+      title: "Announcements",
+      position: { x: 800, y: 480 },
+      size: { width: 360, height: 300 },
+      minSize: { width: 300, height: 250 },
+    },
+    {
+      id: "news",
+      title: "News Ticker",
+      position: { x: 1180, y: 100 },
+      size: { width: 340, height: 280 },
+      minSize: { width: 280, height: 200 },
+    },
+    {
+      id: "calllog",
+      title: "Call Log",
+      position: { x: 1180, y: 400 },
+      size: { width: 340, height: 320 },
+      minSize: { width: 320, height: 280 },
+    },
+    {
+      id: "radio",
+      title: "Internet Radio",
+      position: { x: 20, y: 800 },
+      size: { width: 380, height: 280 },
+      minSize: { width: 350, height: 250 },
+    },
+    {
+      id: "calculator",
+      title: "Calculator",
+      position: { x: 420, y: 800 },
+      size: { width: 280, height: 380 },
+      minSize: { width: 250, height: 350 },
+    },
+  ] as WidgetState[],
+};
 
 interface WidgetState {
   id: string;
@@ -22,85 +100,12 @@ interface WidgetState {
   minSize: { width: number; height: number };
 }
 
-const defaultWidgets: WidgetState[] = [
-  {
-    id: "time",
-    title: "Time & Calendar",
-    position: { x: 20, y: 100 },
-    size: { width: 500, height: 320 },
-    minSize: { width: 400, height: 300 },
-  },
-  {
-    id: "weather",
-    title: "Weather",
-    position: { x: 540, y: 100 },
-    size: { width: 380, height: 240 },
-    minSize: { width: 300, height: 200 },
-  },
-  {
-    id: "youtube",
-    title: "YouTube",
-    position: { x: 940, y: 100 },
-    size: { width: 360, height: 360 },
-    minSize: { width: 320, height: 300 },
-  },
-  {
-    id: "todo",
-    title: "To-Do List",
-    position: { x: 20, y: 440 },
-    size: { width: 380, height: 340 },
-    minSize: { width: 300, height: 250 },
-  },
-  {
-    id: "projects",
-    title: "Projects",
-    position: { x: 420, y: 440 },
-    size: { width: 360, height: 340 },
-    minSize: { width: 300, height: 300 },
-  },
-  {
-    id: "announcements",
-    title: "Announcements",
-    position: { x: 800, y: 480 },
-    size: { width: 360, height: 300 },
-    minSize: { width: 300, height: 250 },
-  },
-  {
-    id: "news",
-    title: "News Ticker",
-    position: { x: 1180, y: 100 },
-    size: { width: 340, height: 280 },
-    minSize: { width: 280, height: 200 },
-  },
-  {
-    id: "calllog",
-    title: "Call Log",
-    position: { x: 1180, y: 400 },
-    size: { width: 340, height: 320 },
-    minSize: { width: 320, height: 280 },
-  },
-  {
-    id: "radio",
-    title: "Internet Radio",
-    position: { x: 20, y: 800 },
-    size: { width: 380, height: 280 },
-    minSize: { width: 350, height: 250 },
-  },
-  {
-    id: "calculator",
-    title: "Calculator",
-    position: { x: 420, y: 800 },
-    size: { width: 280, height: 380 },
-    minSize: { width: 250, height: 350 },
-  },
-];
-
 function App() {
   const [isClient, setIsClient] = useState(false);
   
   // Use custom hook for persistent dark mode and widget layout
   const [darkMode, setDarkMode] = useLocalStorage<boolean>("darkMode", true);
-  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", defaultWidgets);
+  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", WIDGET_LAYOUT.DEFAULT_WIDGETS);
 
   // Initialize client-side only features
   useEffect(() => {
@@ -118,7 +123,7 @@ function App() {
   }, [darkMode, isClient]);
 
   const handleResetLayout = useCallback(() => {
-    setWidgets(defaultWidgets);
+    setWidgets(WIDGET_LAYOUT.DEFAULT_WIDGETS);
   }, [setWidgets]);
 
   const handlePositionChange = useCallback(
@@ -176,34 +181,41 @@ function App() {
   }
 
   return (
-    <div
-      className={`min-h-screen ${
-        darkMode ? "bg-slate-950" : "bg-slate-100"
-      } transition-colors duration-500`}
-    >
-      <ParticleBackground darkMode={darkMode} />
-      <div className="relative z-10">
-        <Header darkMode={darkMode} setDarkMode={setDarkMode} onResetLayout={handleResetLayout} />
+    <ErrorBoundary>
+      <div
+        className={`min-h-screen ${
+          darkMode ? "bg-slate-950" : "bg-slate-100"
+        } transition-colors duration-500`}
+      >
+        <ParticleBackground darkMode={darkMode} />
+        <div className="relative z-10">
+          <Header darkMode={darkMode} setDarkMode={setDarkMode} onResetLayout={handleResetLayout} />
 
-        <main className="relative w-full" style={{ height: "1200px" }}>
-          {widgets.map((widget) => (
-            <WidgetContainer
-              key={widget.id}
-              id={widget.id}
-              title={widget.title}
-              darkMode={darkMode}
-              initialPosition={widget.position}
-              initialSize={widget.size}
-              minSize={widget.minSize}
-              onPositionChange={handlePositionChange}
-              onSizeChange={handleSizeChange}
-            >
-              {renderWidget(widget.id, darkMode)}
-            </WidgetContainer>
-          ))}
-        </main>
+          <main 
+            className="relative w-full" 
+            style={{ height: `${WIDGET_LAYOUT.CONTAINER_HEIGHT}px` }}
+            role="main"
+            aria-label="Dashboard widgets"
+          >
+            {widgets.map((widget) => (
+              <WidgetContainer
+                key={widget.id}
+                id={widget.id}
+                title={widget.title}
+                darkMode={darkMode}
+                initialPosition={widget.position}
+                initialSize={widget.size}
+                minSize={widget.minSize}
+                onPositionChange={handlePositionChange}
+                onSizeChange={handleSizeChange}
+              >
+                {renderWidget(widget.id, darkMode)}
+              </WidgetContainer>
+            ))}
+          </main>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 

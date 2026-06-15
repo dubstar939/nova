@@ -1,6 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
+
+// Constants for widget configuration
+const WIDGET_CONFIG = {
+  DEFAULT_CONTAINER_HEIGHT: 1200,
+  MIN_WIDGET_WIDTH: 300,
+  MIN_WIDGET_HEIGHT: 200,
+};
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -30,7 +37,7 @@ export default function WidgetContainer({
   darkMode,
   initialPosition = { x: 0, y: 0 },
   initialSize,
-  minSize = { width: 300, height: 200 },
+  minSize = { width: WIDGET_CONFIG.MIN_WIDGET_WIDTH, height: WIDGET_CONFIG.MIN_WIDGET_HEIGHT },
   id,
   onPositionChange,
   onSizeChange,
@@ -43,20 +50,33 @@ export default function WidgetContainer({
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const containerBounds = { maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000, maxY: 1200 - minSize.height };
+  
+  // Memoize container bounds to prevent recalculation on every render
+  const containerBounds = useMemo(() => ({
+    maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000,
+    maxY: WIDGET_CONFIG.DEFAULT_CONTAINER_HEIGHT - minSize.height,
+  }), [minSize.width, minSize.height]);
 
-  // Sync with parent state changes
+  // Sync with parent state changes - only update if values actually differ
   useEffect(() => {
-    if (initialPosition.x !== position.x || initialPosition.y !== position.y) {
+    if (
+      initialPosition.x !== position.x || 
+      initialPosition.y !== position.y
+    ) {
       setPosition(initialPosition);
     }
-  }, [initialPosition.x, initialPosition.y]);
+    // Only depend on initialPosition object reference, not individual properties
+  }, [initialPosition]);
 
   useEffect(() => {
-    if (initialSize?.width !== size.width || initialSize?.height !== size.height) {
+    if (
+      initialSize?.width !== size.width || 
+      initialSize?.height !== size.height
+    ) {
       setSize(initialSize || { width: minSize.width, height: minSize.height });
     }
-  }, [initialSize?.width, initialSize?.height]);
+    // Only depend on initialSize object reference
+  }, [initialSize, minSize.width, minSize.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
@@ -83,20 +103,26 @@ export default function WidgetContainer({
   }, []);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       if (isDragging) {
+        const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
+        const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+        
         const newPosition = {
-          x: Math.max(0, Math.min(e.clientX - dragOffset.x, containerBounds.maxX)),
-          y: Math.max(0, Math.min(e.clientY - dragOffset.y, containerBounds.maxY)),
+          x: Math.max(0, Math.min(clientX - dragOffset.x, containerBounds.maxX)),
+          y: Math.max(0, Math.min(clientY - dragOffset.y, containerBounds.maxY)),
         };
         setPosition(newPosition);
         onPositionChange?.(id, newPosition);
       }
 
       if (isResizing && containerRef.current) {
+        const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
+        const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+        
         const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = Math.max(minSize.width, e.clientX - rect.left);
-        const newHeight = Math.max(minSize.height, e.clientY - rect.top);
+        const newWidth = Math.max(minSize.width, clientX - rect.left);
+        const newHeight = Math.max(minSize.height, clientY - rect.top);
         const newSize = { width: newWidth, height: newHeight };
         setSize(newSize);
         onSizeChange?.(id, newSize);
@@ -111,11 +137,17 @@ export default function WidgetContainer({
     if (isDragging || isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+      // Add touch event listeners for mobile support
+      document.addEventListener("touchmove", handleMouseMove, { passive: false });
+      document.addEventListener("touchend", handleMouseUp);
     }
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      // Clean up touch event listeners
+      document.removeEventListener("touchmove", handleMouseMove);
+      document.removeEventListener("touchend", handleMouseUp);
     };
   }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange, containerBounds]);
 
