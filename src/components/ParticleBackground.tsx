@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 interface Particle {
   x: number;
@@ -15,6 +15,12 @@ interface ParticleBackgroundProps {
 
 export default function ParticleBackground({ darkMode }: ParticleBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const darkModeRef = useRef(darkMode);
+
+  // Store darkMode in ref to avoid re-running effect on every change
+  useEffect(() => {
+    darkModeRef.current = darkMode;
+  }, [darkMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -47,7 +53,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
 
     let animationId: number;
 
-    const animate = () => {
+    const animate = useCallback(() => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach((particle, i) => {
@@ -59,7 +65,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
 
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = darkMode
+        ctx.fillStyle = darkModeRef.current
           ? `rgba(6, 182, 212, ${particle.opacity})`
           : `rgba(59, 130, 246, ${particle.opacity})`;
         ctx.fill();
@@ -74,7 +80,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(particle2.x, particle2.y);
-            ctx.strokeStyle = darkMode
+            ctx.strokeStyle = darkModeRef.current
               ? `rgba(6, 182, 212, ${0.1 * (1 - distance / 120)})`
               : `rgba(59, 130, 246, ${0.1 * (1 - distance / 120)})`;
             ctx.stroke();
@@ -83,7 +89,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
       });
 
       animationId = requestAnimationFrame(animate);
-    };
+    }, []);
 
     animate();
 
@@ -91,13 +97,15 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
       window.removeEventListener("resize", resizeCanvas);
       cancelAnimationFrame(animationId);
     };
-  }, [darkMode]);
+    // Only run effect once on mount, darkMode changes handled via ref
+  }, []);
 
   return (
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 0 }}
+      aria-hidden="true"
     />
   );
 }
