@@ -23,6 +23,9 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Capture initial darkMode value to avoid re-creating animation loop
+    let currentDarkMode = darkMode;
+
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -59,7 +62,8 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
 
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = darkMode
+        // Use captured value instead of closing over changing darkMode
+        ctx.fillStyle = currentDarkMode
           ? `rgba(6, 182, 212, ${particle.opacity})`
           : `rgba(59, 130, 246, ${particle.opacity})`;
         ctx.fill();
@@ -74,7 +78,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(particle2.x, particle2.y);
-            ctx.strokeStyle = darkMode
+            ctx.strokeStyle = currentDarkMode
               ? `rgba(6, 182, 212, ${0.1 * (1 - distance / 120)})`
               : `rgba(59, 130, 246, ${0.1 * (1 - distance / 120)})`;
             ctx.stroke();
@@ -91,7 +95,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
       window.removeEventListener("resize", resizeCanvas);
       cancelAnimationFrame(animationId);
     };
-  }, [darkMode]);
+  }, []); // Empty dependency - animation doesn't need to restart on theme change
 
   return (
     <canvas

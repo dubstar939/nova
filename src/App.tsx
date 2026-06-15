@@ -225,7 +225,7 @@ function App() {
           onManageWidgets={() => setShowWidgetPicker(true)}
         />
 
-        <main className="relative w-full" style={{ height: "1200px" }}>
+        <main className="relative w-full" style={{ height: "calc(100vh - 80px)", minHeight: "1200px" }}>
           {widgets.map((widget) => (
             <WidgetContainer
               key={widget.id}
