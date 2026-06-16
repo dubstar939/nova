@@ -12,6 +12,7 @@ import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
+import AppLocker, { ALL_WIDGETS } from "./components/AppLocker";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -19,78 +20,18 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 // Constants for widget layout configuration
 const WIDGET_LAYOUT = {
   CONTAINER_HEIGHT: 1200,
-  DEFAULT_WIDGETS: [
-    {
-      id: "time",
-      title: "Time & Calendar",
-      position: { x: 20, y: 100 },
-      size: { width: 500, height: 320 },
-      minSize: { width: 400, height: 300 },
-    },
-    {
-      id: "weather",
-      title: "Weather",
-      position: { x: 540, y: 100 },
-      size: { width: 380, height: 240 },
-      minSize: { width: 300, height: 200 },
-    },
-    {
-      id: "youtube",
-      title: "YouTube",
-      position: { x: 940, y: 100 },
-      size: { width: 360, height: 360 },
-      minSize: { width: 320, height: 300 },
-    },
-    {
-      id: "todo",
-      title: "To-Do List",
-      position: { x: 20, y: 440 },
-      size: { width: 380, height: 340 },
-      minSize: { width: 300, height: 250 },
-    },
-    {
-      id: "projects",
-      title: "Projects",
-      position: { x: 420, y: 440 },
-      size: { width: 360, height: 340 },
-      minSize: { width: 300, height: 300 },
-    },
-    {
-      id: "announcements",
-      title: "Announcements",
-      position: { x: 800, y: 480 },
-      size: { width: 360, height: 300 },
-      minSize: { width: 300, height: 250 },
-    },
-    {
-      id: "news",
-      title: "News Ticker",
-      position: { x: 1180, y: 100 },
-      size: { width: 340, height: 280 },
-      minSize: { width: 280, height: 200 },
-    },
-    {
-      id: "calllog",
-      title: "Call Log",
-      position: { x: 1180, y: 400 },
-      size: { width: 340, height: 320 },
-      minSize: { width: 320, height: 280 },
-    },
-    {
-      id: "radio",
-      title: "Internet Radio",
-      position: { x: 20, y: 800 },
-      size: { width: 380, height: 280 },
-      minSize: { width: 350, height: 250 },
-    },
-    {
-      id: "calculator",
-      title: "Calculator",
-      position: { x: 420, y: 800 },
-      size: { width: 280, height: 380 },
-      minSize: { width: 250, height: 350 },
-    },
-  ] as WidgetState[],
+  DEFAULT_WIDGET_IDS: [
+    "time",
+    "weather",
+    "youtube",
+    "todo",
+    "projects",
+    "announcements",
+    "news",
+    "calllog",
+    "radio",
+    "calculator",
+  ],
 };
 
 interface WidgetState {
@@ -101,12 +42,31 @@ interface WidgetState {
   minSize: { width: number; height: number };
 }
 
+// Helper function to create default widget state from IDs
+const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
+  return widgetIds.map((id) => {
+    const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+    if (!widgetDef) {
+      throw new Error(`Unknown widget ID: ${id}`);
+    }
+    return {
+      id: widgetDef.id,
+      title: widgetDef.title,
+      position: widgetDef.defaultPosition,
+      size: widgetDef.defaultSize,
+      minSize: widgetDef.minSize,
+    };
+  });
+};
+
 // Main app content component that uses theme context
 function AppContent() {
   const [isClient, setIsClient] = useState(false);
   
   // Use custom hook for persistent widget layout (theme is handled by context)
-  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", WIDGET_LAYOUT.DEFAULT_WIDGETS);
+  const [activeWidgetIds, setActiveWidgetIds] = useLocalStorage<string[]>("activeWidgetIds", WIDGET_LAYOUT.DEFAULT_WIDGET_IDS);
+  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", createDefaultWidgets(WIDGET_LAYOUT.DEFAULT_WIDGET_IDS));
+  const [isAppLockerOpen, setIsAppLockerOpen] = useState(false);
   const { darkMode } = useTheme();
 
   // Initialize client-side only features
@@ -114,9 +74,41 @@ function AppContent() {
     setIsClient(true);
   }, []);
 
+  // Sync widgets when active widget IDs change
+  useEffect(() => {
+    setWidgets((prevWidgets) => {
+      const newWidgets = activeWidgetIds.map((id) => {
+        const existing = prevWidgets.find((w) => w.id === id);
+        if (existing) return existing;
+        
+        const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+        if (!widgetDef) {
+          throw new Error(`Unknown widget ID: ${id}`);
+        }
+        return {
+          id: widgetDef.id,
+          title: widgetDef.title,
+          position: widgetDef.defaultPosition,
+          size: widgetDef.defaultSize,
+          minSize: widgetDef.minSize,
+        };
+      });
+      return newWidgets;
+    });
+  }, [activeWidgetIds]);
+
   const handleResetLayout = useCallback(() => {
-    setWidgets(WIDGET_LAYOUT.DEFAULT_WIDGETS);
-  }, [setWidgets]);
+    setActiveWidgetIds([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]);
+    setWidgets(createDefaultWidgets([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]));
+  }, [setActiveWidgetIds, setWidgets]);
+
+  const handleToggleAppLocker = useCallback(() => {
+    setIsAppLockerOpen((prev) => !prev);
+  }, []);
+
+  const handleWidgetsChange = useCallback((newWidgetIds: string[]) => {
+    setActiveWidgetIds(newWidgetIds);
+  }, [setActiveWidgetIds]);
 
   const handlePositionChange = useCallback(
     (id: string, position: { x: number; y: number }) => {
@@ -180,7 +172,11 @@ function AppContent() {
     >
       <ParticleBackground darkMode={darkMode} />
       <div className="relative z-10">
-        <Header darkMode={darkMode} onResetLayout={handleResetLayout} />
+        <Header 
+          darkMode={darkMode} 
+          onResetLayout={handleResetLayout}
+          onOpenAppLocker={handleToggleAppLocker}
+        />
 
         <main 
           className="relative w-full" 
@@ -205,6 +201,16 @@ function AppContent() {
           ))}
         </main>
       </div>
+
+      {/* App Locker Modal */}
+      <AppLocker
+        darkMode={darkMode}
+        isOpen={isAppLockerOpen}
+        onClose={() => setIsAppLockerOpen(false)}
+        availableWidgets={ALL_WIDGETS}
+        activeWidgetIds={activeWidgetIds}
+        onWidgetsChange={handleWidgetsChange}
+      />
     </div>
   );
 }

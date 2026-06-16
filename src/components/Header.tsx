@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -9,6 +9,7 @@ import { useTheme } from "../contexts/ThemeContext";
 interface HeaderProps {
   darkMode: boolean;
   onResetLayout?: () => void;
+  onOpenAppLocker?: () => void;
 }
 
 interface QuickLink {
@@ -17,7 +18,7 @@ interface QuickLink {
   url: string;
 }
 
-export default function Header({ darkMode, onResetLayout }: HeaderProps) {
+export default function Header({ darkMode, onResetLayout, onOpenAppLocker }: HeaderProps) {
   const { toggleDarkMode } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
@@ -221,6 +222,19 @@ export default function Header({ darkMode, onResetLayout }: HeaderProps) {
             animate={{ x: 0, opacity: 1 }}
             className="flex items-center gap-3"
           >
+            {onOpenAppLocker && (
+              <Button
+                onClick={onOpenAppLocker}
+                className={`relative overflow-hidden ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
+                    : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                }`}
+                title="Manage apps on dashboard"
+              >
+                <LayoutGrid className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
+              </Button>
+            )}
             {onResetLayout && (
               <Button
                 onClick={onResetLayout}
