@@ -17,6 +17,14 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
+interface WidgetDefinition {
+  id: string;
+  title: string;
+  defaultPosition: { x: number; y: number };
+  defaultSize: { width: number; height: number };
+  minSize: { width: number; height: number };
+}
+
 // Constants for widget layout configuration
 const WIDGET_LAYOUT = {
   CONTAINER_HEIGHT: 1200,
@@ -45,7 +53,7 @@ interface WidgetState {
 // Helper function to create default widget state from IDs
 const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
   return widgetIds.map((id) => {
-    const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+    const widgetDef = ALL_WIDGETS.find((w: WidgetDefinition) => w.id === id);
     if (!widgetDef) {
       throw new Error(`Unknown widget ID: ${id}`);
     }
@@ -78,10 +86,10 @@ function AppContent() {
   useEffect(() => {
     setWidgets((prevWidgets) => {
       const newWidgets = activeWidgetIds.map((id) => {
-        const existing = prevWidgets.find((w) => w.id === id);
+        const existing = prevWidgets.find((w: WidgetState) => w.id === id);
         if (existing) return existing;
         
-        const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+        const widgetDef = ALL_WIDGETS.find((w: WidgetDefinition) => w.id === id);
         if (!widgetDef) {
           throw new Error(`Unknown widget ID: ${id}`);
         }
