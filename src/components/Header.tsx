@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, Settings } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
