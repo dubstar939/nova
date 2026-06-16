@@ -137,7 +137,7 @@ function AppContent() {
   );
 
   // Memoize widget renderer to prevent unnecessary re-renders
-  const renderWidget = useCallback((widgetId: string, darkMode: boolean) => {
+  const renderWidget = useCallback((widgetId: string) => {
     switch (widgetId) {
       case "time":
         return <TimeWidget darkMode={darkMode} />;
@@ -162,7 +162,7 @@ function AppContent() {
       default:
         return null;
     }
-  }, []);
+  }, [darkMode]);
 
   if (!isClient) {
     return (
@@ -200,7 +200,7 @@ function AppContent() {
               onPositionChange={handlePositionChange}
               onSizeChange={handleSizeChange}
             >
-              {renderWidget(widget.id, darkMode)}
+              {renderWidget(widget.id)}
             </WidgetContainer>
           ))}
         </main>

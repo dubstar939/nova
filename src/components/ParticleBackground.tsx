@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 interface Particle {
   x: number;
@@ -17,6 +17,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const darkModeRef = useRef(darkMode);
+  const animationFrameRef = useRef<number>();
 
   // Store darkMode in ref to avoid re-running effect on every change
   useEffect(() => {
@@ -30,7 +31,6 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let animationId: number;
     let isMounted = true;
 
     const resizeCanvas = () => {
@@ -57,9 +57,9 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
       }
     }
 
-    const animate = useCallback(() => {
+    const animate = () => {
       if (!isMounted || !ctx || !canvas) return;
-      
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particlesRef.current.forEach((particle, i) => {
@@ -94,16 +94,18 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
         });
       });
 
-      animationId = requestAnimationFrame(animate);
-    }, []);
+      if (isMounted) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
 
     animate();
 
     return () => {
       isMounted = false;
       window.removeEventListener("resize", resizeCanvas);
-      if (animationId) {
-        cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
     // Only run effect once on mount, darkMode changes handled via ref
