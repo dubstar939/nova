@@ -17,13 +17,30 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
-interface WidgetDefinition {
+interface WidgetState {
   id: string;
   title: string;
-  defaultPosition: { x: number; y: number };
-  defaultSize: { width: number; height: number };
+  position: { x: number; y: number };
+  size: { width: number; height: number };
   minSize: { width: number; height: number };
 }
+
+// Helper function to create default widget state from IDs
+const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
+  return widgetIds.map((id) => {
+    const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+    if (!widgetDef) {
+      throw new Error(`Unknown widget ID: ${id}`);
+    }
+    return {
+      id: widgetDef.id,
+      title: widgetDef.title,
+      position: widgetDef.defaultPosition,
+      size: widgetDef.defaultSize,
+      minSize: widgetDef.minSize,
+    };
+  });
+};
 
 // Constants for widget layout configuration
 const WIDGET_LAYOUT = {
@@ -42,38 +59,19 @@ const WIDGET_LAYOUT = {
   ],
 };
 
-interface WidgetState {
-  id: string;
-  title: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  minSize: { width: number; height: number };
-}
-
-// Helper function to create default widget state from IDs
-const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
-  return widgetIds.map((id) => {
-    const widgetDef = ALL_WIDGETS.find((w: WidgetDefinition) => w.id === id);
-    if (!widgetDef) {
-      throw new Error(`Unknown widget ID: ${id}`);
-    }
-    return {
-      id: widgetDef.id,
-      title: widgetDef.title,
-      position: widgetDef.defaultPosition,
-      size: widgetDef.defaultSize,
-      minSize: widgetDef.minSize,
-    };
-  });
-};
-
 // Main app content component that uses theme context
 function AppContent() {
   const [isClient, setIsClient] = useState(false);
   
   // Use custom hook for persistent widget layout (theme is handled by context)
-  const [activeWidgetIds, setActiveWidgetIds] = useLocalStorage<string[]>("activeWidgetIds", WIDGET_LAYOUT.DEFAULT_WIDGET_IDS);
-  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", createDefaultWidgets(WIDGET_LAYOUT.DEFAULT_WIDGET_IDS));
+  const [activeWidgetIds, setActiveWidgetIds] = useLocalStorage<string[]>(
+    "activeWidgetIds",
+    WIDGET_LAYOUT.DEFAULT_WIDGET_IDS
+  );
+  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>(
+    "widgetLayout",
+    createDefaultWidgets(WIDGET_LAYOUT.DEFAULT_WIDGET_IDS)
+  );
   const [isAppLockerOpen, setIsAppLockerOpen] = useState(false);
   const { darkMode } = useTheme();
 
@@ -86,10 +84,10 @@ function AppContent() {
   useEffect(() => {
     setWidgets((prevWidgets) => {
       const newWidgets = activeWidgetIds.map((id) => {
-        const existing = prevWidgets.find((w: WidgetState) => w.id === id);
+        const existing = prevWidgets.find((w) => w.id === id);
         if (existing) return existing;
         
-        const widgetDef = ALL_WIDGETS.find((w: WidgetDefinition) => w.id === id);
+        const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
         if (!widgetDef) {
           throw new Error(`Unknown widget ID: ${id}`);
         }
