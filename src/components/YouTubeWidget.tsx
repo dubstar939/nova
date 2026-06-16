@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Play, X, Loader2 } from "lucide-react";
+import { Search, Play, X, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -14,29 +14,42 @@ interface Video {
   thumbnail: string;
 }
 
-// Default featured videos
+// Default featured videos - reliable fallback
 const defaultVideos: Video[] = [
   { id: "dQw4w9WgXcQ", title: "Rick Astley - Never Gonna Give You Up", thumbnail: "" },
   { id: "jNQXAC9IVRw", title: "Me at the zoo", thumbnail: "" },
   { id: "9bZkp7q19f0", title: "PSY - GANGNAM STYLE", thumbnail: "" },
+  { id: "kJQP7kiw5Fk", title: "Luis Fonsi - Despacito", thumbnail: "" },
+  { id: "JGwWNGJdvx8", title: "Ed Sheeran - Shape of You", thumbnail: "" },
+  { id: "RgKAFK5djSk", title: "Wiz Khalifa - See You Again", thumbnail: "" },
 ];
 
-// Alternative video sources for search fallback
-const fallbackVideos: Record<string, Video[]> = {
+// Curated search results for common queries (reliable fallback)
+const curatedSearches: Record<string, Video[]> = {
   music: [
     { id: "kJQP7kiw5Fk", title: "Luis Fonsi - Despacito", thumbnail: "" },
     { id: "JGwWNGJdvx8", title: "Ed Sheeran - Shape of You", thumbnail: "" },
     { id: "RgKAFK5djSk", title: "Wiz Khalifa - See You Again", thumbnail: "" },
+    { id: "fJ9rUzIMcZQ", title: "Queen - Bohemian Rhapsody", thumbnail: "" },
+    { id: "hTWKbfoikeg", title: "Nirvana - Smells Like Teen Spirit", thumbnail: "" },
   ],
   gaming: [
     { id: "M7FIvfx5J10", title: "Gaming Highlights", thumbnail: "" },
-    { id: "hTWKbfoikeg", title: "Nirvana - Smells Like Teen Spirit", thumbnail: "" },
-    { id: "fJ9rUzIMcZQ", title: "Queen - Bohemian Rhapsody", thumbnail: "" },
+    { id: "uzjDnV6vT3A", title: "Best Gaming Moments", thumbnail: "" },
+    { id: "4xDzrJKzXiE", title: "Epic Game Plays", thumbnail: "" },
   ],
   tech: [
     { id: "tO01J-M3g0U", title: "Tech Review", thumbnail: "" },
-    { id: "y6120QOlsfU", title: "Darude - Sandstorm", thumbnail: "" },
-    { id: "ZZ5LpwO-An4", title: "HEYYEYAAEYAAAEYAEYAA", thumbnail: "" },
+    { id: "VeH9d-PXyP8", title: "Latest Tech News", thumbnail: "" },
+    { id: "Btknz-Dt6ik", title: "Tech Tips", thumbnail: "" },
+  ],
+  news: [
+    { id: "WFkVzRdl8oM", title: "World News Today", thumbnail: "" },
+    { id: "qADs9L8s9pQ", title: "Breaking News", thumbnail: "" },
+  ],
+  tutorial: [
+    { id: "zRqks3Nlyuo", title: "How To Tutorial", thumbnail: "" },
+    { id: "SqIvAfTI7Ds", title: "Step by Step Guide", thumbnail: "" },
   ],
 };
 
@@ -46,6 +59,12 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load default videos on mount
+  useEffect(() => {
+    setVideos(defaultVideos);
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,32 +75,15 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
     }
     
     setIsLoading(true);
+    setError(null);
     
     try {
-      // Use YouTube's InnerTube API directly
+      // Try YouTube Data API v3 first (more reliable)
       const apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-      const searchUrl = `https://www.youtube.com/youtubei/v1/search?key=${apiKey}`;
-      
-      const requestBody = {
-        context: {
-          client: {
-            hl: "en",
-            gl: "US",
-            clientName: "WEB",
-            clientVersion: "2.20260611.01.00"
-          }
-        },
-        query: searchQuery
-      };
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(searchQuery)}&maxResults=9&key=${apiKey}`;
       
       console.log("Fetching from URL:", searchUrl);
-      const response = await fetch(searchUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await fetch(searchUrl);
       
       console.log("Response status:", response.status);
       
@@ -89,77 +91,48 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
         const data = await response.json();
         console.log("Response received");
         
-        // Parse the InnerTube response
-        const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
-        let results: Video[] = [];
-        
-        if (contents && Array.isArray(contents)) {
-          for (const section of contents) {
-            const itemSection = section.itemSectionRenderer?.contents;
-            if (itemSection && Array.isArray(itemSection)) {
-              for (const item of itemSection) {
-                const videoRenderer = item.videoRenderer;
-                if (videoRenderer) {
-                  const videoId = videoRenderer.videoId;
-                  const title = videoRenderer.title?.runs?.[0]?.text || "";
-                  if (videoId) {
-                    results.push({
-                      id: videoId,
-                      title: title,
-                      thumbnail: ""
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-        
-        console.log(`Found ${results.length} videos`);
-        
-        if (results.length > 0) {
-          setVideos(results.slice(0, 9));
-        } else {
-          // Check if query matches any fallback category
-          const queryLower = searchQuery.toLowerCase();
-          let fallbackResults: Video[] = [];
+        if (data.items && data.items.length > 0) {
+          const results: Video[] = data.items.map((item: any) => ({
+            id: item.id.videoId,
+            title: item.snippet?.title || "Untitled Video",
+            thumbnail: item.snippet?.thumbnails?.default?.url || "",
+          }));
           
-          for (const [category, videos] of Object.entries(fallbackVideos)) {
-            if (queryLower.includes(category)) {
-              fallbackResults = videos;
-              break;
-            }
-          }
-          
-          if (fallbackResults.length > 0) {
-            console.log("Using category fallback videos");
-            setVideos(fallbackResults);
-          } else {
-            console.log("No results found, using default videos");
-            setVideos(defaultVideos);
-          }
-        }
-      } else {
-        console.log("Response not ok, checking fallback");
-        // Check if query matches any fallback category
-        const queryLower = searchQuery.toLowerCase();
-        for (const [category, videos] of Object.entries(fallbackVideos)) {
-          if (queryLower.includes(category)) {
-            setVideos(videos);
-            break;
-          }
+          console.log(`Found ${results.length} videos`);
+          setVideos(results);
+          return;
         }
       }
-    } catch (error) {
-      console.error("Search error:", error);
-      // Check if query matches any fallback category even on error
+      
+      // Fallback: Check curated searches
+      console.log("API search failed, checking curated searches");
       const queryLower = searchQuery.toLowerCase();
-      for (const [category, videos] of Object.entries(fallbackVideos)) {
+      
+      for (const [category, categoryVideos] of Object.entries(curatedSearches)) {
         if (queryLower.includes(category)) {
-          setVideos(videos);
-          break;
+          console.log(`Using curated results for: ${category}`);
+          setVideos(categoryVideos);
+          return;
         }
       }
+      
+      // If no curated match, use default videos
+      console.log("No curated match, using defaults");
+      setVideos(defaultVideos);
+      
+    } catch (err) {
+      console.error("Search error:", err);
+      setError("Search unavailable. Showing featured videos.");
+      
+      // Fallback to curated searches or defaults
+      const queryLower = searchQuery.toLowerCase();
+      for (const [category, categoryVideos] of Object.entries(curatedSearches)) {
+        if (queryLower.includes(category)) {
+          setVideos(categoryVideos);
+          return;
+        }
+      }
+      setVideos(defaultVideos);
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +202,16 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
           )}
         </Button>
       </form>
+
+      {/* Error message */}
+      {error && (
+        <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+          darkMode ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-600"
+        }`}>
+          <AlertCircle className="w-4 h-4" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
 
       {isPlaying && currentVideo && (
         <motion.div
