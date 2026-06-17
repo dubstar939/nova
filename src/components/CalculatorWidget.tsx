@@ -14,8 +14,12 @@ interface ButtonConfig {
 
 // Safe math expression evaluator - no eval or Function constructor
 const safeEvaluate = (expression: string): number => {
-  // Tokenize and parse the expression
-  const tokens = expression.match(/[\d.]+|[+\-*/()]|./g) || [];
+  // Tokenize and parse the expression - ignore whitespace
+  const tokens = expression.match(/[\d.]+|[+\-*/()]/g) || [];
+  
+  if (tokens.length === 0) {
+    return 0;
+  }
   
   // Simple recursive descent parser for arithmetic expressions
   let pos = 0;
@@ -47,10 +51,14 @@ const safeEvaluate = (expression: string): number => {
   };
   
   const parseFactor = (): number => {
+    if (pos >= tokens.length) {
+      return 0;
+    }
+    
     if (tokens[pos] === '(') {
       pos++;
       const result = parseExpression();
-      if (tokens[pos] === ')') pos++;
+      if (pos < tokens.length && tokens[pos] === ')') pos++;
       return result;
     }
     
