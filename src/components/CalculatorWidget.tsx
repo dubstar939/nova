@@ -88,7 +88,7 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
   }, []);
 
   const handleOperator = useCallback((op: string) => {
-    setEquation(display + " " + op + " ");
+    setEquation(prev => prev + display + " " + op + " ");
     setDisplay("0");
   }, [display]);
 
