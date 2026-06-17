@@ -2,14 +2,4 @@
 # Build artifacts
 dist/
 build/
-
-# Dependencies
-node_modules/
-
-# Editors
-.vscode/
-
-# Compiled files
-*.o
-*.obj
 ```
