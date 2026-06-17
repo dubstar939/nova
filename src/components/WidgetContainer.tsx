@@ -79,11 +79,13 @@ export default function WidgetContainer({
   }, [initialPosition.x, initialPosition.y]);
 
   useEffect(() => {
-    const sizeDiff = initialSize && (
+    if (!initialSize) return;
+    
+    const sizeDiff = (
       Math.abs(initialSize.width - (syncedSizeRef.current?.width || 0)) + 
       Math.abs(initialSize.height - (syncedSizeRef.current?.height || 0))
     );
-    if (sizeDiff && sizeDiff > 0.1) {
+    if (sizeDiff > 0.1) {
       syncedSizeRef.current = initialSize;
       setSize(initialSize);
     }

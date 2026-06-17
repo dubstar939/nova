@@ -109,6 +109,7 @@ export default function AppLocker({
           onWidgetsChange(activeWidgetIds.filter((id) => id !== widgetId));
         }
       } else {
+        // Add new widget to the end of the list
         onWidgetsChange([...activeWidgetIds, widgetId]);
       }
     },
@@ -118,6 +119,7 @@ export default function AppLocker({
   const handleDragStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent, widgetId: string) => {
       e.preventDefault();
+      e.stopPropagation();
       const target = e.target as HTMLElement;
       target.setAttribute("data-dragging-id", widgetId);
     },
@@ -187,7 +189,7 @@ export default function AppLocker({
                       key={widget.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer select-none ${
                         isActive
                           ? darkMode
                             ? "border-cyan-500 bg-cyan-500/10"
@@ -196,7 +198,10 @@ export default function AppLocker({
                           ? "border-slate-700 bg-slate-800 hover:border-slate-600"
                           : "border-slate-200 bg-slate-50 hover:border-slate-300"
                       }`}
-                      onClick={() => handleToggleWidget(widget.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleWidget(widget.id);
+                      }}
                       onMouseDown={(e) => handleDragStart(e, widget.id)}
                       onTouchStart={(e) => handleDragStart(e, widget.id)}
                       role="checkbox"
@@ -209,7 +214,7 @@ export default function AppLocker({
                         }
                       }}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 pointer-events-none">
                         <div
                           className={`w-5 h-5 rounded flex items-center justify-center mt-0.5 ${
                             isActive
