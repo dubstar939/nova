@@ -12,6 +12,8 @@ import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
+import MapsWidget from "./components/MapsWidget";
+import AIAssistantWidget from "./components/AIAssistantWidget";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
 interface WidgetConfig {
@@ -56,35 +58,28 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, 'id'>> = {
   },
   todo: {
     title: "To-Do List",
-    defaultPosition: { x: 20, y: 440 },
+    defaultPosition: { x: 20, y: 100 },
     defaultSize: { width: 380, height: 340 },
     minSize: { width: 300, height: 250 },
     component: TodoWidget,
   },
   projects: {
     title: "Projects",
-    defaultPosition: { x: 420, y: 440 },
+    defaultPosition: { x: 420, y: 100 },
     defaultSize: { width: 360, height: 340 },
     minSize: { width: 300, height: 300 },
     component: ProjectWidget,
   },
   announcements: {
     title: "Announcements",
-    defaultPosition: { x: 800, y: 480 },
+    defaultPosition: { x: 800, y: 100 },
     defaultSize: { width: 360, height: 300 },
     minSize: { width: 300, height: 250 },
     component: AnnouncementWidget,
   },
-  news: {
-    title: "News Ticker",
-    defaultPosition: { x: 1180, y: 100 },
-    defaultSize: { width: 340, height: 280 },
-    minSize: { width: 280, height: 200 },
-    component: NewsWidget,
-  },
   calllog: {
     title: "Call Log",
-    defaultPosition: { x: 1180, y: 400 },
+    defaultPosition: { x: 1180, y: 100 },
     defaultSize: { width: 340, height: 320 },
     minSize: { width: 320, height: 280 },
     component: CallLogWidget,
@@ -102,6 +97,20 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, 'id'>> = {
     defaultSize: { width: 280, height: 380 },
     minSize: { width: 250, height: 350 },
     component: CalculatorWidget,
+  },
+  maps: {
+    title: "Maps",
+    defaultPosition: { x: 20, y: 450 },
+    defaultSize: { width: 400, height: 340 },
+    minSize: { width: 350, height: 300 },
+    component: MapsWidget,
+  },
+  aiAssistant: {
+    title: "AI Assistant",
+    defaultPosition: { x: 440, y: 450 },
+    defaultSize: { width: 380, height: 340 },
+    minSize: { width: 320, height: 300 },
+    component: AIAssistantWidget,
   },
 };
 
@@ -224,8 +233,15 @@ function App() {
           onResetLayout={handleResetLayout}
           onManageWidgets={() => setShowWidgetPicker(true)}
         />
+        
+        {/* News Ticker Bar - Full Width at Top */}
+        <div className={`w-full h-10 ${
+          darkMode ? "bg-slate-900/95 border-b border-cyan-500/20" : "bg-white/95 border-b border-blue-200"
+        } backdrop-blur-sm`}>
+          <NewsWidget darkMode={darkMode} />
+        </div>
 
-        <main className="relative w-full" style={{ height: "calc(100vh - 80px)", minHeight: "1200px" }}>
+        <main className="relative w-full" style={{ height: "calc(100vh - 130px)", minHeight: "1200px" }}>
           {widgets.map((widget) => (
             <WidgetContainer
               key={widget.id}

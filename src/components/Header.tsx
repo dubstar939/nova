@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid } from "lucide-react";
-import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, ChevronDown, ExternalLink } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -16,7 +16,10 @@ interface QuickLink {
   id: number;
   name: string;
   url: string;
+  isFavorite?: boolean;
 }
+
+const MAX_FAVORITES = 5;
 
 export default function Header({ darkMode, setDarkMode, onResetLayout, onManageWidgets }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,6 +28,19 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +58,19 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
 
   const addQuickLink = () => {
     if (!newLinkName.trim() || !newLinkUrl.trim()) return;
-    setQuickLinks([...quickLinks, { id: Date.now(), name: newLinkName, url: newLinkUrl }]);
+    
+    let url = newLinkUrl;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    const newLink: QuickLink = { 
+      id: Date.now(), 
+      name: newLinkName, 
+      url: url,
+      isFavorite: quickLinks.filter(l => l.isFavorite).length < MAX_FAVORITES
+    };
+    setQuickLinks([...quickLinks, newLink]);
     setNewLinkName("");
     setNewLinkUrl("");
     setIsAddingLink(false);
@@ -51,6 +79,22 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
   const removeQuickLink = (id: number) => {
     setQuickLinks(quickLinks.filter(link => link.id !== id));
   };
+
+  const toggleFavorite = (id: number) => {
+    setQuickLinks(quickLinks.map(link => {
+      if (link.id === id) {
+        const favoritesCount = quickLinks.filter(l => l.isFavorite).length;
+        if (!link.isFavorite && favoritesCount >= MAX_FAVORITES) {
+          return link; // Can't add more favorites
+        }
+        return { ...link, isFavorite: !link.isFavorite };
+      }
+      return link;
+    }));
+  };
+
+  const favoriteLinks = quickLinks.filter(link => link.isFavorite);
+  const otherLinks = quickLinks.filter(link => !link.isFavorite);
 
   return (
     <header
@@ -90,7 +134,8 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
             </h1>
 
             <div className="flex items-center gap-2 ml-4">
-              {quickLinks.map((link) => (
+              {/* Favorite Links as Buttons */}
+              {favoriteLinks.map((link) => (
                 <motion.div
                   key={link.id}
                   initial={{ scale: 0 }}
@@ -101,7 +146,7 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
                       darkMode
                         ? "bg-slate-800 text-cyan-400 hover:bg-slate-700"
                         : "bg-blue-50 text-blue-600 hover:bg-blue-100"
@@ -110,14 +155,86 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
                     {link.name}
                   </a>
                   <button
-                    onClick={() => removeQuickLink(link.id)}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => toggleFavorite(link.id)}
+                    className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
+                      darkMode ? "bg-amber-500" : "bg-amber-400"
+                    }`}
+                    title="Remove from favorites"
                   >
-                    <X className="w-3 h-3 text-white" />
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
                   </button>
                 </motion.div>
               ))}
               
+              {/* Dropdown for Additional Links */}
+              {otherLinks.length > 0 && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      darkMode
+                        ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    More Links
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {showDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg border overflow-hidden z-50 ${
+                          darkMode
+                            ? "bg-slate-800 border-cyan-500/30"
+                            : "bg-white border-blue-200"
+                        }`}
+                      >
+                        <div className="py-2">
+                          {otherLinks.map((link) => (
+                            <div
+                              key={link.id}
+                              className={`flex items-center justify-between px-4 py-2 ${
+                                darkMode ? "hover:bg-slate-700" : "hover:bg-slate-50"
+                              }`}
+                            >
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 text-sm ${
+                                  darkMode ? "text-slate-300" : "text-slate-600"
+                                }`}
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                {link.name}
+                              </a>
+                              <button
+                                onClick={() => toggleFavorite(link.id)}
+                                className={`p-1 rounded ${
+                                  darkMode ? "hover:bg-slate-600" : "hover:bg-slate-200"
+                                }`}
+                                title="Add to favorites"
+                              >
+                                <svg className={`w-3 h-3 ${darkMode ? "text-slate-400" : "text-slate-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+              
+              {/* Add New Link Button */}
               {isAddingLink ? (
                 <motion.div
                   initial={{ opacity: 0, width: 0 }}
