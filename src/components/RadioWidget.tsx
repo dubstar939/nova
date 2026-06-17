@@ -22,9 +22,7 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     { name: "Rock Station", genre: "Rock", frequency: "95.5", url: "https://stream.zeno.fm/rq4xV7qVF6ZUV" },
     { name: "Electronic Wave", genre: "Electronic", frequency: "98.1", url: "https://stream.zeno.fm/vf3bV7qVF6ZUV" },
     { name: "BBC News", genre: "News", frequency: "Online", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service" },
-    { name: "ESPN Radio", genre: "Sports", frequency: "Online", url: "https://stream.zeno.fm/sportsradio" },
     { name: "Chillhop", genre: "Chill hop", frequency: "Online", url: "https://stream.zeno.fm/chillhop" },
-    { name: "Dubstep FM", genre: "Dubstep", frequency: "Online", url: "https://stream.zeno.fm/dubstep" },
   ]);
   const [selectedStation, setSelectedStation] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -35,14 +33,33 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   );
   const animationRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     audioRef.current = new Audio();
+    audioRef.current.preload = "none";
     audioRef.current.volume = volume / 100;
-    
+
+    // Add error handling for audio playback
+    audioRef.current.addEventListener('error', (e) => {
+      console.error("Audio error:", e);
+      setError("Unable to play this station. Please try another.");
+      setIsPlaying(false);
+    });
+
+    audioRef.current.addEventListener('waiting', () => {
+      console.log("Buffering...");
+    });
+
+    audioRef.current.addEventListener('playing', () => {
+      console.log("Now playing");
+      setError(null);
+    });
+
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = "";
         audioRef.current = null;
       }
     };
@@ -57,10 +74,12 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.src = stations[selectedStation].url;
+      setError(null);
       if (isPlaying) {
         audioRef.current.load();
         audioRef.current.play().catch((err) => {
           console.error("Error playing station:", err);
+          setError("Failed to play. Please try another station.");
           setIsPlaying(false);
         });
       }
@@ -71,6 +90,7 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     if (isPlaying && audioRef.current) {
       audioRef.current.play().catch((err) => {
         console.error("Error playing station:", err);
+        setError("Playback failed. Please try again.");
         setIsPlaying(false);
       });
     } else if (audioRef.current) {
@@ -175,6 +195,15 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
           />
         ))}
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${
+          darkMode ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-600"
+        }`}>
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {stations.map((station, index) => (
