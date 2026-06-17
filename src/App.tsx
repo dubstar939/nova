@@ -204,9 +204,11 @@ function App() {
     return <WidgetComponent darkMode={darkMode} />;
   }, []);
 
-  // Memoize available widgets for picker
+  // Memoize available widgets for picker - ensure no duplicates
   const availableWidgets = useMemo(() => {
-    return availableWidgetIds
+    // Filter out any IDs that don't exist in registry and remove duplicates
+    const uniqueIds = [...new Set(availableWidgetIds.filter(id => WIDGET_REGISTRY[id]))];
+    return uniqueIds
       .map(id => ({ id, ...WIDGET_REGISTRY[id] }))
       .filter(w => w.title !== undefined);
   }, [availableWidgetIds]);
