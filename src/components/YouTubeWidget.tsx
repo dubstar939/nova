@@ -51,6 +51,36 @@ const curatedSearches: Record<string, Video[]> = {
     { id: "zRqks3Nlyuo", title: "How To Tutorial", thumbnail: "" },
     { id: "SqIvAfTI7Ds", title: "Step by Step Guide", thumbnail: "" },
   ],
+  cooking: [
+    { id: "e_Xhh7g3u8w", title: "Easy Cooking Recipes", thumbnail: "" },
+    { id: "mhZBNzvKMKE", title: "Quick Meals", thumbnail: "" },
+    { id: "T6c5pbAZ8bE", title: "Cooking Basics", thumbnail: "" },
+  ],
+  science: [
+    { id: "J3gL8bnGE-I", title: "Science Explained", thumbnail: "" },
+    { id: "wteN4mISGd8", title: "Amazing Science Facts", thumbnail: "" },
+  ],
+  sports: [
+    { id: "dQw4w9WgXcQ", title: "Sports Highlights", thumbnail: "" },
+    { id: "jNQXAC9IVRw", title: "Best Sports Moments", thumbnail: "" },
+  ],
+  comedy: [
+    { id: "9bZkp7q19f0", title: "Funny Comedy Clips", thumbnail: "" },
+    { id: "kJQP7kiw5Fk", title: "Comedy Central Highlights", thumbnail: "" },
+  ],
+};
+
+// Keywords mapping for better search matching
+const searchKeywords: Record<string, string[]> = {
+  music: ["song", "music", "band", "artist", "album", "concert", "live"],
+  gaming: ["game", "gaming", "playthrough", "walkthrough", "lets play"],
+  tech: ["tech", "technology", "review", "unboxing", "gadgets"],
+  news: ["news", "breaking", "current", "world", "politics"],
+  tutorial: ["tutorial", "how to", "guide", "learn", "lesson", "course"],
+  cooking: ["cook", "recipe", "food", "baking", "chef", "meal", "kitchen"],
+  science: ["science", "experiment", "physics", "chemistry", "biology", "space"],
+  sports: ["sport", "football", "basketball", "soccer", "highlights", "game"],
+  comedy: ["comedy", "funny", "humor", "joke", "laugh", "standup"],
 };
 
 export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
@@ -104,20 +134,31 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
         }
       }
       
-      // Fallback: Check curated searches
-      console.log("API search failed, checking curated searches");
-      const queryLower = searchQuery.toLowerCase();
+      // Fallback: Check curated searches using keyword matching
+      console.log("API search failed or no results, checking curated searches");
+      const queryLower = searchQuery.toLowerCase().trim();
       
+      // First try exact category match
       for (const [category, categoryVideos] of Object.entries(curatedSearches)) {
-        if (queryLower.includes(category)) {
+        if (queryLower.includes(category) || category.includes(queryLower)) {
           console.log(`Using curated results for: ${category}`);
           setVideos(categoryVideos);
           return;
         }
       }
       
-      // If no curated match, use default videos
-      console.log("No curated match, using defaults");
+      // Then try keyword matching
+      for (const [category, keywords] of Object.entries(searchKeywords)) {
+        if (keywords.some(keyword => queryLower.includes(keyword))) {
+          console.log(`Using curated results for category: ${category} (matched keyword)`);
+          setVideos(curatedSearches[category] || defaultVideos);
+          return;
+        }
+      }
+      
+      // If no match found, show defaults with a helpful message
+      console.log("No curated match found, showing defaults");
+      setError("Showing featured videos. Try searching for: music, gaming, tech, news, tutorial, cooking, science, sports, or comedy.");
       setVideos(defaultVideos);
       
     } catch (err) {
@@ -125,13 +166,16 @@ export default function YouTubeWidget({ darkMode }: YouTubeWidgetProps) {
       setError("Search unavailable. Showing featured videos.");
       
       // Fallback to curated searches or defaults
-      const queryLower = searchQuery.toLowerCase();
-      for (const [category, categoryVideos] of Object.entries(curatedSearches)) {
-        if (queryLower.includes(category)) {
-          setVideos(categoryVideos);
+      const queryLower = searchQuery.toLowerCase().trim();
+      
+      // Try keyword matching even on error
+      for (const [category, keywords] of Object.entries(searchKeywords)) {
+        if (keywords.some(keyword => queryLower.includes(keyword))) {
+          setVideos(curatedSearches[category] || defaultVideos);
           return;
         }
       }
+      
       setVideos(defaultVideos);
     } finally {
       setIsLoading(false);
