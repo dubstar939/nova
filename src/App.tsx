@@ -20,6 +20,7 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 // Constants for widget layout configuration
 const WIDGET_LAYOUT = {
   CONTAINER_HEIGHT: 1200,
+  CONTAINER_WIDTH: typeof window !== 'undefined' ? window.innerWidth : 1200,
   DEFAULT_WIDGET_IDS: [
     "time",
     "weather",
@@ -32,6 +33,9 @@ const WIDGET_LAYOUT = {
     "radio",
     "calculator",
   ],
+  GRID_COLUMNS: 3,
+  GRID_GAP: 20,
+  HEADER_OFFSET: 80,
 };
 
 interface WidgetState {
@@ -52,9 +56,38 @@ const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
     return {
       id: widgetDef.id,
       title: widgetDef.title,
-      position: widgetDef.defaultPosition,
-      size: widgetDef.defaultSize,
-      minSize: widgetDef.minSize,
+      position: { ...widgetDef.defaultPosition },
+      size: { ...widgetDef.defaultSize },
+      minSize: { ...widgetDef.minSize },
+    };
+  });
+};
+
+// Calculate auto-arranged positions for widgets
+const calculateAutoArrange = (widgets: WidgetState[], containerWidth: number): WidgetState[] => {
+  const columns = WIDGET_LAYOUT.GRID_COLUMNS;
+  const gap = WIDGET_LAYOUT.GRID_GAP;
+  const headerOffset = WIDGET_LAYOUT.HEADER_OFFSET;
+  
+  // Calculate column width based on available space
+  const availableWidth = containerWidth - (gap * (columns + 1));
+  const columnWidth = availableWidth / columns;
+  
+  return widgets.map((widget, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    
+    // Use widget's current size or default to standard dimensions
+    const width = Math.min(widget.size.width || 350, columnWidth - gap);
+    const height = widget.size.height || 350;
+    
+    return {
+      ...widget,
+      position: {
+        x: gap + col * (columnWidth),
+        y: headerOffset + gap + row * (height + gap),
+      },
+      size: { width, height },
     };
   });
 };
@@ -74,7 +107,7 @@ function AppContent() {
     setIsClient(true);
   }, []);
 
-  // Sync widgets when active widget IDs change
+  // Sync widgets when active widget IDs change - preserve existing positions/sizes when possible
   useEffect(() => {
     setWidgets((prevWidgets) => {
       const newWidgets = activeWidgetIds.map((id) => {
@@ -88,18 +121,31 @@ function AppContent() {
         return {
           id: widgetDef.id,
           title: widgetDef.title,
-          position: widgetDef.defaultPosition,
-          size: widgetDef.defaultSize,
-          minSize: widgetDef.minSize,
+          position: { ...widgetDef.defaultPosition },
+          size: { ...widgetDef.defaultSize },
+          minSize: { ...widgetDef.minSize },
         };
       });
       return newWidgets;
     });
-  }, [activeWidgetIds]);
+  }, [activeWidgetIds, setWidgets]);
+
+  // Auto-arrange widgets in a grid layout
+  const handleSnapBack = useCallback(() => {
+    const containerWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    setWidgets((prevWidgets) => {
+      const arrangedWidgets = calculateAutoArrange(prevWidgets, containerWidth);
+      // Update positions for all widgets
+      return arrangedWidgets;
+    });
+  }, [setWidgets]);
 
   const handleResetLayout = useCallback(() => {
     setActiveWidgetIds([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]);
-    setWidgets(createDefaultWidgets([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]));
+    const defaultWidgets = createDefaultWidgets([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]);
+    // Auto-arrange after resetting
+    const containerWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    setWidgets(calculateAutoArrange(defaultWidgets, containerWidth));
   }, [setActiveWidgetIds, setWidgets]);
 
   const handleToggleAppLocker = useCallback(() => {
@@ -176,6 +222,7 @@ function AppContent() {
           darkMode={darkMode} 
           onResetLayout={handleResetLayout}
           onOpenAppLocker={handleToggleAppLocker}
+          onSnapBack={handleSnapBack}
         />
 
         <main 

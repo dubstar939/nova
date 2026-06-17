@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, Grid3X3 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -10,6 +10,7 @@ interface HeaderProps {
   darkMode: boolean;
   onResetLayout?: () => void;
   onOpenAppLocker?: () => void;
+  onSnapBack?: () => void;
 }
 
 interface QuickLink {
@@ -18,7 +19,7 @@ interface QuickLink {
   url: string;
 }
 
-export default function Header({ darkMode, onResetLayout, onOpenAppLocker }: HeaderProps) {
+export default function Header({ darkMode, onResetLayout, onOpenAppLocker, onSnapBack }: HeaderProps) {
   const { toggleDarkMode } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
@@ -222,6 +223,19 @@ export default function Header({ darkMode, onResetLayout, onOpenAppLocker }: Hea
             animate={{ x: 0, opacity: 1 }}
             className="flex items-center gap-3"
           >
+            {onSnapBack && (
+              <Button
+                onClick={onSnapBack}
+                className={`relative overflow-hidden ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
+                    : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                }`}
+                title="Auto-arrange widgets in a grid"
+              >
+                <Grid3X3 className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
+              </Button>
+            )}
             {onOpenAppLocker && (
               <Button
                 onClick={onOpenAppLocker}
