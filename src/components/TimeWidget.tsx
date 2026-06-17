@@ -13,6 +13,33 @@ const timezones = [
   { name: "Alaska", offset: -9, abbr: "AKT" },
 ];
 
+// Get current UTC offset for a timezone considering DST
+const getOffsetWithDST = (baseOffset: number, date: Date): number => {
+  // Create a date in UTC
+  const utcTime = date.getTime() + date.getTimezoneOffset() * 60000;
+  // Create a date with the base offset
+  const targetDate = new Date(utcTime + baseOffset * 3600000);
+  
+  // Check if DST is in effect (simplified check for US timezones)
+  // DST runs from second Sunday in March to first Sunday in November
+  const year = targetDate.getFullYear();
+  const marchSecondSunday = new Date(year, 2, 1);
+  while (marchSecondSunday.getDay() !== 0) {
+    marchSecondSunday.setDate(marchSecondSunday.getDate() + 1);
+  }
+  marchSecondSunday.setDate(marchSecondSunday.getDate() + 7);
+  
+  const novFirstSunday = new Date(year, 10, 1);
+  while (novFirstSunday.getDay() !== 0) {
+    novFirstSunday.setDate(novFirstSunday.getDate() + 1);
+  }
+  
+  const isDST = targetDate >= marchSecondSunday && targetDate < novFirstSunday;
+  
+  // Add 1 hour for DST (most US timezones observe DST)
+  return baseOffset + (isDST ? 1 : 0);
+};
+
 export default function TimeWidget({ darkMode }: TimeWidgetProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTimezone, setSelectedTimezone] = useState(0);
@@ -26,8 +53,9 @@ export default function TimeWidget({ darkMode }: TimeWidgetProps) {
   }, []);
 
   const getTimeInTimezone = (offset: number) => {
+    const adjustedOffset = getOffsetWithDST(offset, currentTime);
     const utc = currentTime.getTime() + currentTime.getTimezoneOffset() * 60000;
-    return new Date(utc + offset * 3600000);
+    return new Date(utc + adjustedOffset * 3600000);
   };
 
   const formatTime = (date: Date) => {
