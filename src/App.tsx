@@ -152,6 +152,14 @@ function AppContent() {
     setIsAppLockerOpen((prev) => !prev);
   }, []);
 
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setActiveWidgetIds((prev) => {
+      // Don't allow removing the last widget
+      if (prev.length <= 1) return prev;
+      return prev.filter((id) => id !== widgetId);
+    });
+  }, [setActiveWidgetIds]);
+
   const handleWidgetsChange = useCallback((newWidgetIds: string[]) => {
     setActiveWidgetIds(newWidgetIds);
   }, [setActiveWidgetIds]);
@@ -242,6 +250,7 @@ function AppContent() {
               minSize={widget.minSize}
               onPositionChange={handlePositionChange}
               onSizeChange={handleSizeChange}
+              onRemove={handleRemoveWidget}
             >
               {renderWidget(widget.id)}
             </WidgetContainer>
