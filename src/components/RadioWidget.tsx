@@ -97,10 +97,19 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   const animationRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio element
+  // Initialize audio element and set up event listeners
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.preload = "none";
+    
+    // Set up event listeners to sync state with actual audio playback
+    audioRef.current.addEventListener('play', () => setIsPlaying(true));
+    audioRef.current.addEventListener('pause', () => setIsPlaying(false));
+    audioRef.current.addEventListener('error', (e) => {
+      console.error("Audio playback error:", e);
+      setIsPlaying(false);
+      setVisualizerBars(Array(20).fill(5));
+    });
     
     return () => {
       if (audioRef.current) {
@@ -111,26 +120,32 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     };
   }, []);
 
-  // Handle station changes
+  // Handle station changes - only update source, don't auto-play
   useEffect(() => {
     if (!audioRef.current || !stations[selectedStation]) return;
     
     const currentStation = stations[selectedStation];
     
-    if (isPlaying) {
+    // Only change source if it's different from current
+    if (audioRef.current.src !== currentStation.url) {
       audioRef.current.src = currentStation.url;
-      audioRef.current.volume = isMuted ? 0 : volume / 100;
       
-      audioRef.current.play().catch((error) => {
-        console.error("Failed to play stream:", error);
-        setIsPlaying(false);
-        setVisualizerBars(Array(20).fill(5));
-      });
-    } else {
-      audioRef.current.pause();
+      // If already playing, continue playing the new station
+      if (isPlaying) {
+        audioRef.current.play().catch((error) => {
+          console.error("Failed to play stream:", error);
+          setIsPlaying(false);
+          setVisualizerBars(Array(20).fill(5));
+        });
+      }
+    }
+    
+    audioRef.current.volume = isMuted ? 0 : volume / 100;
+    
+    if (!isPlaying) {
       setVisualizerBars(Array(20).fill(5));
     }
-  }, [selectedStation, isPlaying, stations]);
+  }, [selectedStation]);
 
   // Handle volume and mute changes
   useEffect(() => {
@@ -165,14 +180,29 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
     };
   }, [isPlaying, isMuted]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!audioRef.current || !stations[selectedStation]) return;
+    
+    const currentStation = stations[selectedStation];
     
     if (isPlaying) {
       audioRef.current.pause();
-      setIsPlaying(false);
+      // State will be updated by the 'pause' event listener
     } else {
-      setIsPlaying(true);
+      // Set the source if not already set or if station changed
+      if (audioRef.current.src !== currentStation.url) {
+        audioRef.current.src = currentStation.url;
+      }
+      audioRef.current.volume = isMuted ? 0 : volume / 100;
+      
+      try {
+        await audioRef.current.play();
+        // State will be updated by the 'play' event listener
+      } catch (error) {
+        console.error("Failed to play stream:", error);
+        setIsPlaying(false);
+        setVisualizerBars(Array(20).fill(5));
+      }
     }
   };
 
