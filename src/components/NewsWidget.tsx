@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface NewsWidgetProps {
   darkMode: boolean;
@@ -47,82 +47,85 @@ const newsHeadlines: NewsItem[] = [
 
 export default function NewsWidget({ darkMode }: NewsWidgetProps) {
   const [currentHeadline, setCurrentHeadline] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
+    if (isPaused) return;
     const timer = setInterval(() => {
       setCurrentHeadline((prev) => (prev + 1) % newsHeadlines.length);
-    }, 5000);
+    }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isPaused]);
+
+  const goToPrevious = () => {
+    setCurrentHeadline((prev) => (prev - 1 + newsHeadlines.length) % newsHeadlines.length);
+  };
+
+  const goToNext = () => {
+    setCurrentHeadline((prev) => (prev + 1) % newsHeadlines.length);
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`p-6 rounded-2xl border ${
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={`w-full h-10 flex items-center overflow-hidden ${
         darkMode
-          ? "bg-slate-900/90 border-cyan-500/20"
-          : "bg-white/90 border-blue-200"
+          ? "bg-slate-900/95 border-b border-cyan-500/20"
+          : "bg-white/95 border-b border-blue-200"
       } backdrop-blur-sm`}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
-      <h3
-        className={`text-lg font-semibold mb-4 ${
-          darkMode ? "text-white" : "text-slate-800"
-        }`}
-      >
-        News Ticker
-      </h3>
-
-      <div className="overflow-hidden">
-        <motion.div
-          key={currentHeadline}
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -20, opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className={`p-4 rounded-lg ${
-            darkMode ? "bg-slate-800" : "bg-slate-50"
-          }`}
-        >
-          <a
+      <div className="flex items-center gap-3 px-4 flex-shrink-0">
+        <span className={`text-xs font-bold uppercase tracking-wider ${
+          darkMode ? "text-cyan-400" : "text-blue-600"
+        }`}>
+          NEWS
+        </span>
+      </div>
+      
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.a
+            key={currentHeadline}
             href={newsHeadlines[currentHeadline].url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex items-start gap-2 group ${
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -20, opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className={`flex items-center gap-2 text-sm hover:underline ${
               darkMode ? "text-white" : "text-slate-800"
-            } hover:underline`}
-          >
-            <p className="text-sm flex-1">
-              {newsHeadlines[currentHeadline].title}
-            </p>
-            <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100 flex-shrink-0 mt-0.5" />
-          </a>
-          <p
-            className={`text-xs mt-2 ${
-              darkMode ? "text-cyan-400" : "text-blue-500"
             }`}
           >
-            {newsHeadlines[currentHeadline].source}
-          </p>
-        </motion.div>
+            <span className="truncate">{newsHeadlines[currentHeadline].title}</span>
+            <ExternalLink className="w-3 h-3 opacity-50 flex-shrink-0" />
+          </motion.a>
+        </AnimatePresence>
       </div>
 
-      <div className="flex justify-center gap-2 mt-4">
-        {newsHeadlines.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentHeadline(index)}
-            className={`w-2 h-2 rounded-full transition-all ${
-              currentHeadline === index
-                ? darkMode
-                  ? "bg-cyan-500"
-                  : "bg-blue-500"
-                : darkMode
-                ? "bg-slate-700"
-                : "bg-slate-300"
-            }`}
-          />
-        ))}
+      <div className="flex items-center gap-2 px-4 flex-shrink-0">
+        <button
+          onClick={goToPrevious}
+          className={`p-1 rounded hover:bg-opacity-20 ${
+            darkMode ? "hover:bg-cyan-400 text-cyan-400" : "hover:bg-blue-500 text-blue-500"
+          }`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={goToNext}
+          className={`p-1 rounded hover:bg-opacity-20 ${
+            darkMode ? "hover:bg-cyan-400 text-cyan-400" : "hover:bg-blue-500 text-blue-500"
+          }`}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+          {newsHeadlines[currentHeadline].source}
+        </span>
       </div>
     </motion.div>
   );
