@@ -1,6 +1,19 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { GripVertical, X } from "lucide-react";
+
+// Constants for widget configuration
+const WIDGET_CONFIG = {
+  DEFAULT_CONTAINER_HEIGHT: 1200,
+  MIN_WIDGET_WIDTH: 300,
+  MIN_WIDGET_HEIGHT: 200,
+  KEYBOARD_STEP: 10,
+};
+
+// Check for reduced motion preference
+const prefersReducedMotion = typeof window !== 'undefined' 
+  ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
+  : false;
 
 interface WidgetContainerProps {
   children: React.ReactNode;
@@ -31,7 +44,7 @@ export default function WidgetContainer({
   darkMode,
   initialPosition = { x: 0, y: 0 },
   initialSize,
-  minSize = { width: 300, height: 200 },
+  minSize = { width: WIDGET_CONFIG.MIN_WIDGET_WIDTH, height: WIDGET_CONFIG.MIN_WIDGET_HEIGHT },
   id,
   onPositionChange,
   onSizeChange,
@@ -44,44 +57,46 @@ export default function WidgetContainer({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  const [isFocused, setIsFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerBounds, setContainerBounds] = useState({ maxX: 0, maxY: 0 });
+  
+  // Use refs to track if we should sync from parent (to avoid loops)
+  const syncedPositionRef = useRef(initialPosition);
+  const syncedSizeRef = useRef(initialSize);
+  
+  // Memoize container bounds to prevent recalculation on every render
+  const containerBounds = useMemo(() => ({
+    maxX: typeof window !== 'undefined' ? window.innerWidth - minSize.width : 1000,
+    maxY: WIDGET_CONFIG.DEFAULT_CONTAINER_HEIGHT - minSize.height,
+  }), [minSize.width, minSize.height]);
 
-  // Calculate container bounds dynamically
+  // Sync with parent state changes - only update if values actually differ significantly
   useEffect(() => {
-    const updateBounds = () => {
-      if (typeof window !== 'undefined') {
-        setContainerBounds({
-          maxX: window.innerWidth - minSize.width,
-          maxY: Math.max(1200, window.innerHeight - 100) - minSize.height,
-        });
-      }
-    };
-
-    updateBounds();
-    window.addEventListener('resize', updateBounds);
-    return () => window.removeEventListener('resize', updateBounds);
-  }, [minSize.width, minSize.height]);
-
-  // Sync with parent state changes - only when not actively dragging/resizing
-  useEffect(() => {
-    const posChanged = initialPosition.x !== position.x || initialPosition.y !== position.y;
-    if (posChanged && !isDragging) {
+    const posDiff = Math.abs(initialPosition.x - syncedPositionRef.current.x) + 
+                    Math.abs(initialPosition.y - syncedPositionRef.current.y);
+    if (posDiff > 0.1) {
+      syncedPositionRef.current = initialPosition;
       setPosition(initialPosition);
     }
   }, [initialPosition.x, initialPosition.y, isDragging, position.x, position.y]);
 
   useEffect(() => {
-    const sizeChanged = initialSize?.width !== size.width || initialSize?.height !== size.height;
-    if (sizeChanged && !isResizing) {
-      setSize(initialSize || { width: minSize.width, height: minSize.height });
+    if (!initialSize) return;
+    
+    const sizeDiff = (
+      Math.abs(initialSize.width - (syncedSizeRef.current?.width || 0)) + 
+      Math.abs(initialSize.height - (syncedSizeRef.current?.height || 0))
+    );
+    if (sizeDiff > 0.1) {
+      syncedSizeRef.current = initialSize;
+      setSize(initialSize);
     }
   }, [initialSize?.width, initialSize?.height, isResizing, size.width, size.height, minSize.width, minSize.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
-    const clientX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
-    const clientY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
+    const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
     
     if (target.closest(".resize-handle")) return;
     
@@ -103,20 +118,26 @@ export default function WidgetContainer({
   }, []);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       if (isDragging) {
+        const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+        const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
+        
         const newPosition = {
-          x: Math.max(0, Math.min(e.clientX - dragOffset.x, containerBounds.maxX)),
-          y: Math.max(0, Math.min(e.clientY - dragOffset.y, containerBounds.maxY)),
+          x: Math.max(0, Math.min(clientX - dragOffset.x, containerBounds.maxX)),
+          y: Math.max(0, Math.min(clientY - dragOffset.y, containerBounds.maxY)),
         };
         setPosition(newPosition);
         onPositionChange?.(id, newPosition);
       }
 
       if (isResizing && containerRef.current) {
+        const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+        const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
+        
         const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = Math.max(minSize.width, e.clientX - rect.left);
-        const newHeight = Math.max(minSize.height, e.clientY - rect.top);
+        const newWidth = Math.max(minSize.width, clientX - rect.left);
+        const newHeight = Math.max(minSize.height, clientY - rect.top);
         const newSize = { width: newWidth, height: newHeight };
         setSize(newSize);
         onSizeChange?.(id, newSize);
@@ -153,25 +174,65 @@ export default function WidgetContainer({
     };
 
     if (isDragging || isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.addEventListener("touchmove", handleTouchMove, { passive: false });
-      document.addEventListener("touchend", handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove, { passive: true });
+      document.addEventListener("mouseup", handleMouseUp, { passive: true });
+      // Add touch event listeners for mobile support with passive:false for preventDefault
+      document.addEventListener("touchmove", handleMouseMove, { passive: false });
+      document.addEventListener("touchend", handleMouseUp, { passive: true });
     }
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("touchmove", handleTouchMove);
+      // Clean up touch event listeners
+      document.removeEventListener("touchmove", handleMouseMove);
       document.removeEventListener("touchend", handleMouseUp);
     };
   }, [isDragging, isResizing, dragOffset, minSize, id, onPositionChange, onSizeChange, containerBounds]);
 
+  // Keyboard navigation for widgets
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isFocused) return;
+      
+      let newX = position.x;
+      let newY = position.y;
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          newY = Math.max(0, position.y - WIDGET_CONFIG.KEYBOARD_STEP);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          newY = Math.min(position.y + WIDGET_CONFIG.KEYBOARD_STEP, containerBounds.maxY);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          newX = Math.max(0, position.x - WIDGET_CONFIG.KEYBOARD_STEP);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          newX = Math.min(position.x + WIDGET_CONFIG.KEYBOARD_STEP, containerBounds.maxX);
+          break;
+        default:
+          return;
+      }
+      
+      setPosition({ x: newX, y: newY });
+      onPositionChange?.(id, { x: newX, y: newY });
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFocused, position, id, onPositionChange, containerBounds]);
+
   return (
     <motion.div
       ref={containerRef}
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
+      transition={prefersReducedMotion ? { duration: 0 } : undefined}
       style={{
         position: "absolute",
         left: position.x,
@@ -181,9 +242,12 @@ export default function WidgetContainer({
         zIndex: isDragging || isResizing ? 50 : 10,
         touchAction: isDragging || isResizing ? 'none' : 'auto',
       }}
-      className={`${isDragging ? "cursor-grabbing" : ""}`}
+      className={`${isDragging ? "cursor-grabbing" : ""} ${isFocused ? "ring-2 ring-cyan-400" : ""}`}
       role="region"
       aria-label={`${title} widget`}
+      tabIndex={0}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
     >
       <div
         className={`w-full h-full rounded-2xl border overflow-hidden flex flex-col ${

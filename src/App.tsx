@@ -12,18 +12,31 @@ import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
-import MapsWidget from "./components/MapsWidget";
-import AIAssistantWidget from "./components/AIAssistantWidget";
+import AppLocker, { ALL_WIDGETS } from "./components/AppLocker";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
-interface WidgetConfig {
-  id: string;
-  title: string;
-  defaultPosition: { x: number; y: number };
-  defaultSize: { width: number; height: number };
-  minSize: { width: number; height: number };
-  component: React.ComponentType<{ darkMode: boolean }>;
-}
+// Constants for widget layout configuration
+const WIDGET_LAYOUT = {
+  CONTAINER_HEIGHT: 1200,
+  CONTAINER_WIDTH: typeof window !== 'undefined' ? window.innerWidth : 1200,
+  DEFAULT_WIDGET_IDS: [
+    "time",
+    "weather",
+    "youtube",
+    "todo",
+    "projects",
+    "announcements",
+    "news",
+    "calllog",
+    "radio",
+    "calculator",
+  ],
+  GRID_COLUMNS: 3,
+  GRID_GAP: 20,
+  HEADER_OFFSET: 80,
+};
 
 interface WidgetState {
   id: string;
@@ -33,126 +46,115 @@ interface WidgetState {
   minSize: { width: number; height: number };
 }
 
-// Centralized widget registry for better maintainability
-const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, 'id'>> = {
-  time: {
-    title: "Time & Calendar",
-    defaultPosition: { x: 20, y: 100 },
-    defaultSize: { width: 500, height: 320 },
-    minSize: { width: 400, height: 300 },
-    component: TimeWidget,
-  },
-  weather: {
-    title: "Weather",
-    defaultPosition: { x: 540, y: 100 },
-    defaultSize: { width: 380, height: 240 },
-    minSize: { width: 300, height: 200 },
-    component: WeatherWidget,
-  },
-  youtube: {
-    title: "YouTube",
-    defaultPosition: { x: 940, y: 100 },
-    defaultSize: { width: 360, height: 360 },
-    minSize: { width: 320, height: 300 },
-    component: YouTubeWidget,
-  },
-  todo: {
-    title: "To-Do List",
-    defaultPosition: { x: 20, y: 100 },
-    defaultSize: { width: 380, height: 340 },
-    minSize: { width: 300, height: 250 },
-    component: TodoWidget,
-  },
-  projects: {
-    title: "Projects",
-    defaultPosition: { x: 420, y: 100 },
-    defaultSize: { width: 360, height: 340 },
-    minSize: { width: 300, height: 300 },
-    component: ProjectWidget,
-  },
-  announcements: {
-    title: "Announcements",
-    defaultPosition: { x: 800, y: 100 },
-    defaultSize: { width: 360, height: 300 },
-    minSize: { width: 300, height: 250 },
-    component: AnnouncementWidget,
-  },
-  calllog: {
-    title: "Call Log",
-    defaultPosition: { x: 1180, y: 100 },
-    defaultSize: { width: 340, height: 320 },
-    minSize: { width: 320, height: 280 },
-    component: CallLogWidget,
-  },
-  radio: {
-    title: "Internet Radio",
-    defaultPosition: { x: 20, y: 800 },
-    defaultSize: { width: 380, height: 280 },
-    minSize: { width: 350, height: 250 },
-    component: RadioWidget,
-  },
-  calculator: {
-    title: "Calculator",
-    defaultPosition: { x: 420, y: 800 },
-    defaultSize: { width: 280, height: 380 },
-    minSize: { width: 250, height: 350 },
-    component: CalculatorWidget,
-  },
-  maps: {
-    title: "Maps",
-    defaultPosition: { x: 20, y: 450 },
-    defaultSize: { width: 400, height: 340 },
-    minSize: { width: 350, height: 300 },
-    component: MapsWidget,
-  },
-  aiAssistant: {
-    title: "AI Assistant",
-    defaultPosition: { x: 440, y: 450 },
-    defaultSize: { width: 380, height: 340 },
-    minSize: { width: 320, height: 300 },
-    component: AIAssistantWidget,
-  },
+// Helper function to create default widget state from IDs
+const createDefaultWidgets = (widgetIds: string[]): WidgetState[] => {
+  return widgetIds.map((id) => {
+    const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+    if (!widgetDef) {
+      throw new Error(`Unknown widget ID: ${id}`);
+    }
+    return {
+      id: widgetDef.id,
+      title: widgetDef.title,
+      position: { ...widgetDef.defaultPosition },
+      size: { ...widgetDef.defaultSize },
+      minSize: { ...widgetDef.minSize },
+    };
+  });
 };
 
-const defaultWidgets: WidgetState[] = Object.entries(WIDGET_REGISTRY).map(([id, config]) => ({
-  id,
-  title: config.title,
-  position: config.defaultPosition,
-  size: config.defaultSize,
-  minSize: config.minSize,
-}));
+// Calculate auto-arranged positions for widgets
+const calculateAutoArrange = (widgets: WidgetState[], containerWidth: number): WidgetState[] => {
+  const columns = WIDGET_LAYOUT.GRID_COLUMNS;
+  const gap = WIDGET_LAYOUT.GRID_GAP;
+  const headerOffset = WIDGET_LAYOUT.HEADER_OFFSET;
+  
+  // Calculate column width based on available space
+  const availableWidth = containerWidth - (gap * (columns + 1));
+  const columnWidth = availableWidth / columns;
+  
+  return widgets.map((widget, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    
+    // Use widget's current size or default to standard dimensions
+    const width = Math.min(widget.size.width || 350, columnWidth - gap);
+    const height = widget.size.height || 350;
+    
+    return {
+      ...widget,
+      position: {
+        x: gap + col * (columnWidth),
+        y: headerOffset + gap + row * (height + gap),
+      },
+      size: { width, height },
+    };
+  });
+};
 
-function App() {
+// Main app content component that uses theme context
+function AppContent() {
   const [isClient, setIsClient] = useState(false);
   
-  // Use custom hook for persistent dark mode and widget layout
-  const [darkMode, setDarkMode] = useLocalStorage<boolean>("darkMode", true);
-  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", defaultWidgets);
-  const [availableWidgetIds, setAvailableWidgetIds] = useLocalStorage<string[]>(
-    "availableWidgets",
-    Object.keys(WIDGET_REGISTRY)
-  );
-  const [showWidgetPicker, setShowWidgetPicker] = useState(false);
+  // Use custom hook for persistent widget layout (theme is handled by context)
+  const [activeWidgetIds, setActiveWidgetIds] = useLocalStorage<string[]>("activeWidgetIds", WIDGET_LAYOUT.DEFAULT_WIDGET_IDS);
+  const [widgets, setWidgets] = useLocalStorage<WidgetState[]>("widgetLayout", createDefaultWidgets(WIDGET_LAYOUT.DEFAULT_WIDGET_IDS));
+  const [isAppLockerOpen, setIsAppLockerOpen] = useState(false);
+  const { darkMode } = useTheme();
 
   // Initialize client-side only features
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Apply dark mode class to document
+  // Sync widgets when active widget IDs change - preserve existing positions/sizes when possible
   useEffect(() => {
-    if (!isClient) return;
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode, isClient]);
+    setWidgets((prevWidgets) => {
+      const newWidgets = activeWidgetIds.map((id) => {
+        const existing = prevWidgets.find((w) => w.id === id);
+        if (existing) return existing;
+        
+        const widgetDef = ALL_WIDGETS.find((w) => w.id === id);
+        if (!widgetDef) {
+          throw new Error(`Unknown widget ID: ${id}`);
+        }
+        return {
+          id: widgetDef.id,
+          title: widgetDef.title,
+          position: { ...widgetDef.defaultPosition },
+          size: { ...widgetDef.defaultSize },
+          minSize: { ...widgetDef.minSize },
+        };
+      });
+      return newWidgets;
+    });
+  }, [activeWidgetIds, setWidgets]);
+
+  // Auto-arrange widgets in a grid layout
+  const handleSnapBack = useCallback(() => {
+    const containerWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    setWidgets((prevWidgets) => {
+      const arrangedWidgets = calculateAutoArrange(prevWidgets, containerWidth);
+      // Update positions for all widgets
+      return arrangedWidgets;
+    });
+  }, [setWidgets]);
 
   const handleResetLayout = useCallback(() => {
-    setWidgets(defaultWidgets);
-    setAvailableWidgetIds(Object.keys(WIDGET_REGISTRY));
-  }, [setWidgets, setAvailableWidgetIds]);
+    setActiveWidgetIds([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]);
+    const defaultWidgets = createDefaultWidgets([...WIDGET_LAYOUT.DEFAULT_WIDGET_IDS]);
+    // Auto-arrange after resetting
+    const containerWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    setWidgets(calculateAutoArrange(defaultWidgets, containerWidth));
+  }, [setActiveWidgetIds, setWidgets]);
+
+  const handleToggleAppLocker = useCallback(() => {
+    setIsAppLockerOpen((prev) => !prev);
+  }, []);
+
+  const handleWidgetsChange = useCallback((newWidgetIds: string[]) => {
+    setActiveWidgetIds(newWidgetIds);
+  }, [setActiveWidgetIds]);
 
   const handlePositionChange = useCallback(
     (id: string, position: { x: number; y: number }) => {
@@ -197,12 +199,32 @@ function App() {
   }, [setWidgets, setAvailableWidgetIds]);
 
   // Memoize widget renderer to prevent unnecessary re-renders
-  const renderWidget = useCallback((widgetId: string, darkMode: boolean) => {
-    const config = WIDGET_REGISTRY[widgetId];
-    if (!config) return null;
-    const WidgetComponent = config.component;
-    return <WidgetComponent darkMode={darkMode} />;
-  }, []);
+  const renderWidget = useCallback((widgetId: string) => {
+    switch (widgetId) {
+      case "time":
+        return <TimeWidget darkMode={darkMode} />;
+      case "weather":
+        return <WeatherWidget darkMode={darkMode} />;
+      case "todo":
+        return <TodoWidget darkMode={darkMode} />;
+      case "news":
+        return <NewsWidget darkMode={darkMode} />;
+      case "calllog":
+        return <CallLogWidget darkMode={darkMode} />;
+      case "calculator":
+        return <CalculatorWidget darkMode={darkMode} />;
+      case "radio":
+        return <RadioWidget darkMode={darkMode} />;
+      case "projects":
+        return <ProjectWidget darkMode={darkMode} />;
+      case "youtube":
+        return <YouTubeWidget darkMode={darkMode} />;
+      case "announcements":
+        return <AnnouncementWidget darkMode={darkMode} />;
+      default:
+        return null;
+    }
+  }, [darkMode]);
 
   // Memoize available widgets for picker - ensure no duplicates
   const availableWidgets = useMemo(() => {
@@ -231,19 +253,17 @@ function App() {
       <div className="relative z-10">
         <Header 
           darkMode={darkMode} 
-          setDarkMode={setDarkMode} 
           onResetLayout={handleResetLayout}
-          onManageWidgets={() => setShowWidgetPicker(true)}
+          onOpenAppLocker={handleToggleAppLocker}
+          onSnapBack={handleSnapBack}
         />
-        
-        {/* News Ticker Bar - Full Width at Top */}
-        <div className={`w-full h-10 ${
-          darkMode ? "bg-slate-900/95 border-b border-cyan-500/20" : "bg-white/95 border-b border-blue-200"
-        } backdrop-blur-sm`}>
-          <NewsWidget darkMode={darkMode} />
-        </div>
 
-        <main className="relative w-full" style={{ height: "calc(100vh - 130px)", minHeight: "1200px" }}>
+        <main 
+          className="relative w-full" 
+          style={{ height: `${WIDGET_LAYOUT.CONTAINER_HEIGHT}px` }}
+          role="main"
+          aria-label="Dashboard widgets"
+        >
           {widgets.map((widget) => (
             <WidgetContainer
               key={widget.id}
@@ -257,7 +277,7 @@ function App() {
               onSizeChange={handleSizeChange}
               onRemove={() => handleRemoveWidget(widget.id)}
             >
-              {renderWidget(widget.id, darkMode)}
+              {renderWidget(widget.id)}
             </WidgetContainer>
           ))}
         </main>
@@ -348,7 +368,27 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* App Locker Modal */}
+      <AppLocker
+        darkMode={darkMode}
+        isOpen={isAppLockerOpen}
+        onClose={() => setIsAppLockerOpen(false)}
+        availableWidgets={ALL_WIDGETS}
+        activeWidgetIds={activeWidgetIds}
+        onWidgetsChange={handleWidgetsChange}
+      />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Cloud, Sun, CloudRain, Wind, Thermometer, Search } from "lucide-react";
+import { Cloud, Sun, CloudRain, Wind, Thermometer, Plus, X } from "lucide-react";
 
 interface WeatherWidgetProps {
   darkMode: boolean;
@@ -12,6 +12,8 @@ interface WeatherData {
   condition: string;
   humidity: number;
   wind: number;
+  zipCode?: string;
+  isCustom?: boolean;
 }
 
 const defaultWeatherData: WeatherData[] = [
@@ -22,83 +24,26 @@ const defaultWeatherData: WeatherData[] = [
   { city: "Phoenix", temp: 105, condition: "Sunny", humidity: 20, wind: 5 },
 ];
 
+// Simulated zip code to city mapping (in a real app, you'd use an API)
+const zipCodeToCity: Record<string, string> = {
+  "10001": "New York",
+  "90001": "Los Angeles",
+  "60601": "Chicago",
+  "77001": "Houston",
+  "85001": "Phoenix",
+  "94102": "San Francisco",
+  "98101": "Seattle",
+  "33101": "Miami",
+  "02101": "Boston",
+  "75201": "Dallas",
+};
+
 export default function WeatherWidget({ darkMode }: WeatherWidgetProps) {
+  const [weatherData, setWeatherData] = useState<WeatherData[]>(defaultWeatherData);
   const [selectedCity, setSelectedCity] = useState(0);
-  const [zipcode, setZipcode] = useState("");
-  const [customWeather, setCustomWeather] = useState<WeatherData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showZipInput, setShowZipInput] = useState(false);
+  const [zipCode, setZipCode] = useState("");
   const [error, setError] = useState("");
-
-  const fetchWeatherByZipcode = async (zip: string) => {
-    if (!/^\d{5}$/.test(zip)) {
-      setError("Please enter a valid 5-digit zipcode");
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      // Using Open-Meteo API (free, no API key required)
-      // First, get coordinates from zipcode using a geocoding service
-      const geoResponse = await fetch(
-        `https://api.zippopotam.us/us/${zip}`
-      );
-
-      if (!geoResponse.ok) {
-        throw new Error("Zipcode not found");
-      }
-
-      const geoData = await geoResponse.json();
-      const place = geoData.places[0];
-      const lat = place.latitude;
-      const lon = place.longitude;
-      const cityName = place["place name"];
-
-      // Fetch weather data from Open-Meteo
-      const weatherResponse = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&relative_humidity_2m=true`
-      );
-
-      if (!weatherResponse.ok) {
-        throw new Error("Failed to fetch weather data");
-      }
-
-      const weatherData = await weatherResponse.json();
-      const current = weatherData.current_weather;
-      
-      // Convert Celsius to Fahrenheit
-      const tempF = Math.round((current.temperature * 9) / 5 + 32);
-      
-      // Determine condition based on weather code
-      const condition = getConditionFromCode(current.weathercode);
-
-      setCustomWeather({
-        city: `${cityName}, ${zip}`,
-        temp: tempF,
-        condition: condition,
-        humidity: weatherData.current?.relative_humidity_2m || 50,
-        wind: Math.round(current.windspeed * 0.621371), // Convert km/h to mph
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch weather");
-      setCustomWeather(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getConditionFromCode = (code: number): string => {
-    if (code === 0) return "Clear";
-    if (code >= 1 && code <= 3) return "Partly Cloudy";
-    if (code >= 45 && code <= 48) return "Foggy";
-    if (code >= 51 && code <= 67) return "Rainy";
-    if (code >= 71 && code <= 77) return "Snowy";
-    if (code >= 80 && code <= 82) return "Rainy";
-    if (code >= 85 && code <= 86) return "Snowy";
-    if (code >= 95) return "Thunderstorm";
-    return "Sunny";
-  };
 
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
@@ -126,73 +71,188 @@ export default function WeatherWidget({ darkMode }: WeatherWidgetProps) {
     }
   };
 
-  const weather = customWeather || defaultWeatherData[selectedCity];
-
-  const handleZipcodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (zipcode.trim()) {
-      fetchWeatherByZipcode(zipcode.trim());
+  const generateWeatherForZip = (zip: string): WeatherData | null => {
+    const city = zipCodeToCity[zip];
+    if (!city) {
+      // Generate random weather for unknown zip codes
+      const conditions = ["Sunny", "Cloudy", "Partly Cloudy", "Rainy"];
+      const randomTemp = Math.floor(Math.random() * 50) + 50;
+      const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+      const randomHumidity = Math.floor(Math.random() * 50) + 30;
+      const randomWind = Math.floor(Math.random() * 20) + 3;
+      
+      return {
+        city: `ZIP ${zip}`,
+        temp: randomTemp,
+        condition: randomCondition,
+        humidity: randomHumidity,
+        wind: randomWind,
+        zipCode: zip,
+        isCustom: true,
+      };
     }
+    
+    // Find existing city data or create new
+    const existingCity = defaultWeatherData.find(w => w.city === city);
+    if (existingCity) {
+      return {
+        ...existingCity,
+        zipCode: zip,
+        isCustom: true,
+      };
+    }
+    
+    return {
+      city: city,
+      temp: 75,
+      condition: "Sunny",
+      humidity: 50,
+      wind: 10,
+      zipCode: zip,
+      isCustom: true,
+    };
   };
 
-  const clearCustomWeather = () => {
-    setCustomWeather(null);
-    setZipcode("");
+  const handleAddZipCode = () => {
+    if (!zipCode.trim() || zipCode.length < 5) {
+      setError("Please enter a valid 5-digit zip code");
+      return;
+    }
+
+    const newWeather = generateWeatherForZip(zipCode.trim());
+    if (!newWeather) {
+      setError("Unable to fetch weather for this zip code");
+      return;
+    }
+
+    // Check if already exists
+    const exists = weatherData.some(w => w.zipCode === zipCode.trim());
+    if (exists) {
+      setError("This zip code is already added");
+      return;
+    }
+
+    setWeatherData([...weatherData, newWeather]);
+    setSelectedCity(weatherData.length);
+    setZipCode("");
+    setShowZipInput(false);
     setError("");
   };
 
+  const handleRemoveCustomLocation = (index: number) => {
+    const newWeatherData = weatherData.filter((_, i) => i !== index);
+    setWeatherData(newWeatherData);
+    if (selectedCity >= newWeatherData.length) {
+      setSelectedCity(newWeatherData.length - 1);
+    } else if (selectedCity > index) {
+      setSelectedCity(selectedCity - 1);
+    }
+  };
+
+  const weather = weatherData[selectedCity];
+
   return (
     <div className="h-full flex flex-col">
-      {/* Zipcode Input Section */}
-      <div className="mb-4">
-        <form onSubmit={handleZipcodeSubmit} className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={zipcode}
-              onChange={(e) => setZipcode(e.target.value)}
-              placeholder="Enter your zipcode"
-              maxLength={5}
-              className={`w-full px-4 py-2 pr-10 rounded-lg border transition-all ${
-                darkMode
-                  ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-cyan-500"
-                  : "bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-blue-500"
-              } focus:outline-none focus:ring-2 ${
-                darkMode ? "focus:ring-cyan-500/20" : "focus:ring-blue-500/20"
+      <div className="flex flex-wrap gap-2 mb-4">
+        {weatherData.map((w, index) => (
+          <div key={w.zipCode || w.city} className="flex items-center gap-1">
+            <button
+              onClick={() => setSelectedCity(index)}
+              className={`px-3 py-1 rounded-full text-xs transition-all ${
+                selectedCity === index
+                  ? darkMode
+                    ? "bg-cyan-500 text-white"
+                    : "bg-blue-500 text-white"
+                  : darkMode
+                  ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
-            />
-            <Search className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              darkMode ? "text-slate-500" : "text-slate-400"
-            }`} />
+            >
+              {w.city}
+            </button>
+            {w.isCustom && (
+              <button
+                onClick={() => handleRemoveCustomLocation(index)}
+                className={`p-0.5 rounded-full transition-all ${
+                  darkMode ? "hover:bg-red-900 text-red-400" : "hover:bg-red-100 text-red-500"
+                }`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+        ))}
+        <button
+          onClick={() => setShowZipInput(!showZipInput)}
+          className={`px-3 py-1 rounded-full text-xs transition-all flex items-center gap-1 ${
+            darkMode
+              ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <Plus className="w-3 h-3" />
+          Add Location
+        </button>
+      </div>
+
+      {showZipInput && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mb-4 flex gap-2"
+        >
+          <input
+            type="text"
+            value={zipCode}
+            onChange={(e) => {
+              setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5));
+              setError("");
+            }}
+            placeholder="Enter zip code"
+            maxLength={5}
+            className={`flex-1 px-3 py-1 rounded-lg text-sm border ${
               darkMode
-                ? "bg-cyan-500 text-white hover:bg-cyan-600 disabled:bg-slate-700"
-                : "bg-blue-500 text-white hover:bg-blue-600 disabled:bg-slate-300"
-            } disabled:cursor-not-allowed`}
-          >
-            {isLoading ? "..." : "Get"}
-          </button>
-        </form>
-        {error && (
-          <p className={`mt-1 text-sm ${darkMode ? "text-red-400" : "text-red-500"}`}>
-            {error}
-          </p>
-        )}
-        {customWeather && (
+                ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                : "bg-white border-slate-300 text-slate-800 placeholder-slate-400"
+            } focus:outline-none focus:ring-2 ${
+              darkMode ? "focus:ring-cyan-500" : "focus:ring-blue-500"
+            }`}
+          />
           <button
-            onClick={clearCustomWeather}
-            className={`mt-2 text-xs underline ${
-              darkMode ? "text-slate-400 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"
+            onClick={handleAddZipCode}
+            className={`px-4 py-1 rounded-lg text-sm font-medium transition-all ${
+              darkMode
+                ? "bg-cyan-500 text-white hover:bg-cyan-600"
+                : "bg-blue-500 text-white hover:bg-blue-600"
             }`}
           >
-            Back to default cities
+            Add
           </button>
-        )}
-      </div>
+          <button
+            onClick={() => {
+              setShowZipInput(false);
+              setZipCode("");
+              setError("");
+            }}
+            className={`px-4 py-1 rounded-lg text-sm transition-all ${
+              darkMode
+                ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+            }`}
+          >
+            Cancel
+          </button>
+        </motion.div>
+      )}
+
+      {error && (
+        <div className={`mb-4 px-3 py-2 rounded-lg text-sm ${
+          darkMode ? "bg-red-900/50 text-red-400" : "bg-red-100 text-red-600"
+        }`}>
+          {error}
+        </div>
+      )}
 
       {/* Default City Buttons (only show when no custom weather) */}
       {!customWeather && (

@@ -15,6 +15,14 @@ interface ParticleBackgroundProps {
 
 export default function ParticleBackground({ darkMode }: ParticleBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const darkModeRef = useRef(darkMode);
+  const animationFrameRef = useRef<number>();
+
+  // Store darkMode in ref to avoid re-running effect on every change
+  useEffect(() => {
+    darkModeRef.current = darkMode;
+  }, [darkMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,10 +31,10 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Capture initial darkMode value to avoid re-creating animation loop
-    let currentDarkMode = darkMode;
+    let isMounted = true;
 
     const resizeCanvas = () => {
+      if (!isMounted || !canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
@@ -34,26 +42,27 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    const particles: Particle[] = [];
-    const particleCount = 80;
-
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        size: Math.random() * 2 + 1,
-        opacity: Math.random() * 0.5 + 0.2,
-      });
+    // Initialize particles only once
+    if (particlesRef.current.length === 0) {
+      const particleCount = 80;
+      for (let i = 0; i < particleCount; i++) {
+        particlesRef.current.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          size: Math.random() * 2 + 1,
+          opacity: Math.random() * 0.5 + 0.2,
+        });
+      }
     }
 
-    let animationId: number;
-
     const animate = () => {
+      if (!isMounted || !ctx || !canvas) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      particles.forEach((particle, i) => {
+      particlesRef.current.forEach((particle, i) => {
         particle.x += particle.vx;
         particle.y += particle.vy;
 
@@ -62,13 +71,12 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
 
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        // Use captured value instead of closing over changing darkMode
-        ctx.fillStyle = currentDarkMode
+        ctx.fillStyle = darkModeRef.current
           ? `rgba(6, 182, 212, ${particle.opacity})`
           : `rgba(59, 130, 246, ${particle.opacity})`;
         ctx.fill();
 
-        particles.forEach((particle2, j) => {
+        particlesRef.current.forEach((particle2, j) => {
           if (i === j) return;
           const dx = particle.x - particle2.x;
           const dy = particle.y - particle2.y;
@@ -78,7 +86,7 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(particle2.x, particle2.y);
-            ctx.strokeStyle = currentDarkMode
+            ctx.strokeStyle = darkModeRef.current
               ? `rgba(6, 182, 212, ${0.1 * (1 - distance / 120)})`
               : `rgba(59, 130, 246, ${0.1 * (1 - distance / 120)})`;
             ctx.stroke();
@@ -86,22 +94,29 @@ export default function ParticleBackground({ darkMode }: ParticleBackgroundProps
         });
       });
 
-      animationId = requestAnimationFrame(animate);
+      if (isMounted) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animate();
 
     return () => {
+      isMounted = false;
       window.removeEventListener("resize", resizeCanvas);
-      cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
-  }, []); // Empty dependency - animation doesn't need to restart on theme change
+    // Only run effect once on mount, darkMode changes handled via ref
+  }, []);
 
   return (
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 0 }}
+      aria-hidden="true"
     />
   );
 }

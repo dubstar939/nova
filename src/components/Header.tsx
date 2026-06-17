@@ -1,15 +1,16 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, ChevronDown, ExternalLink } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, Grid3X3 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface HeaderProps {
   darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
   onResetLayout?: () => void;
-  onManageWidgets?: () => void;
+  onOpenAppLocker?: () => void;
+  onSnapBack?: () => void;
 }
 
 interface QuickLink {
@@ -19,9 +20,8 @@ interface QuickLink {
   isFavorite?: boolean;
 }
 
-const MAX_FAVORITES = 5;
-
-export default function Header({ darkMode, setDarkMode, onResetLayout, onManageWidgets }: HeaderProps) {
+export default function Header({ darkMode, onResetLayout, onOpenAppLocker, onSnapBack }: HeaderProps) {
+  const { toggleDarkMode } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
   const [quickLinks, setQuickLinks] = useLocalStorage<QuickLink[]>("quickLinks", []);
@@ -58,26 +58,14 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
 
   const addQuickLink = () => {
     if (!newLinkName.trim() || !newLinkUrl.trim()) return;
-    
-    let url = newLinkUrl;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-    
-    const newLink: QuickLink = { 
-      id: Date.now(), 
-      name: newLinkName, 
-      url: url,
-      isFavorite: quickLinks.filter(l => l.isFavorite).length < MAX_FAVORITES
-    };
-    setQuickLinks([...quickLinks, newLink]);
+    setQuickLinks((prev) => [...prev, { id: Date.now(), name: newLinkName, url: newLinkUrl }]);
     setNewLinkName("");
     setNewLinkUrl("");
     setIsAddingLink(false);
   };
 
   const removeQuickLink = (id: number) => {
-    setQuickLinks(quickLinks.filter(link => link.id !== id));
+    setQuickLinks((prev) => prev.filter(link => link.id !== id));
   };
 
   const toggleFavorite = (id: number) => {
@@ -338,15 +326,28 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
             animate={{ x: 0, opacity: 1 }}
             className="flex items-center gap-3"
           >
-            {onManageWidgets && (
+            {onSnapBack && (
               <Button
-                onClick={onManageWidgets}
+                onClick={onSnapBack}
                 className={`relative overflow-hidden ${
                   darkMode
                     ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
                     : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
                 }`}
-                title="Add or remove widgets from dashboard"
+                title="Auto-arrange widgets in a grid"
+              >
+                <Grid3X3 className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
+              </Button>
+            )}
+            {onOpenAppLocker && (
+              <Button
+                onClick={onOpenAppLocker}
+                className={`relative overflow-hidden ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"
+                    : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                }`}
+                title="Manage apps on dashboard"
               >
                 <LayoutGrid className={`w-5 h-5 ${darkMode ? "text-cyan-400" : "text-blue-500"}`} />
               </Button>
@@ -365,7 +366,7 @@ export default function Header({ darkMode, setDarkMode, onResetLayout, onManageW
               </Button>
             )}
             <Button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleDarkMode}
               className={`relative overflow-hidden ${
                 darkMode
                   ? "bg-slate-800 hover:bg-slate-700 border border-cyan-500/30"

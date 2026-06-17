@@ -1,24 +1,98 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 
 interface CalculatorWidgetProps {
   darkMode: boolean;
 }
 
+interface ButtonConfig {
+  label: string;
+  action: () => void;
+  type: "func" | "op" | "num" | "eq";
+  span?: boolean;
+}
+
+// Safe math expression evaluator - no eval or Function constructor
+const safeEvaluate = (expression: string): number => {
+  // Tokenize and parse the expression
+  const tokens = expression.match(/[\d.]+|[+\-*/()]|./g) || [];
+  
+  // Simple recursive descent parser for arithmetic expressions
+  let pos = 0;
+  
+  const parseExpression = (): number => {
+    let left = parseTerm();
+    
+    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+      const op = tokens[pos];
+      pos++;
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    
+    return left;
+  };
+  
+  const parseTerm = (): number => {
+    let left = parseFactor();
+    
+    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+      const op = tokens[pos];
+      pos++;
+      const right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    
+    return left;
+  };
+  
+  const parseFactor = (): number => {
+    if (tokens[pos] === '(') {
+      pos++;
+      const result = parseExpression();
+      if (tokens[pos] === ')') pos++;
+      return result;
+    }
+    
+    if (tokens[pos] === '-') {
+      pos++;
+      return -parseFactor();
+    }
+    
+    const token = tokens[pos];
+    pos++;
+    
+    const num = parseFloat(token);
+    if (isNaN(num)) {
+      throw new Error('Invalid token: ' + token);
+    }
+    
+    return num;
+  };
+  
+  const result = parseExpression();
+  
+  if (!isFinite(result)) {
+    throw new Error('Result is not finite');
+  }
+  
+  return result;
+};
+
 export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
   const [display, setDisplay] = useState("0");
   const [equation, setEquation] = useState("");
-
-  const handleNumber = (num: string) => {
+  
+  const handleNumber = useCallback((num: string) => {
     setDisplay((prev) => (prev === "0" ? num : prev + num));
-  };
+  }, []);
 
-  const handleOperator = (op: string) => {
-    setEquation(display + " " + op + " ");
+  const handleOperator = useCallback((op: string) => {
+    setEquation(prev => prev + display + " " + op + " ");
     setDisplay("0");
-  };
+  }, [display]);
 
-  const handleEquals = () => {
+  const handleEquals = useCallback(() => {
     try {
       const fullEquation = equation + display;
       const sanitized = fullEquation
@@ -33,51 +107,36 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
         return;
       }
       
-      // Additional safety: limit expression length to prevent complex attacks
-      if (sanitized.length > 100) {
-        setDisplay("Error");
-        setEquation("");
-        return;
-      }
-      
-      // Safe evaluation using Function constructor with strict validation
-      // The regex above ensures only mathematical operators and numbers are allowed
-      const safeEval = new Function('return (' + sanitized + ')');
-      const result = safeEval();
-      
-      // Validate result is a finite number
-      if (!isFinite(result) || isNaN(result)) {
-        setDisplay("Error");
-      } else {
-        setDisplay(String(parseFloat(result.toFixed(10))));
-      }
+      const result = safeEvaluate(sanitized);
+      setDisplay(String(parseFloat(result.toFixed(10))));
       setEquation("");
     } catch {
       setDisplay("Error");
       setEquation("");
     }
-  };
+  }, [equation, display]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setDisplay("0");
     setEquation("");
-  };
+  }, []);
 
-  const handlePercent = () => {
+  const handlePercent = useCallback(() => {
     setDisplay((prev) => String(parseFloat(prev) / 100));
-  };
+  }, []);
 
-  const handleToggleSign = () => {
+  const handleToggleSign = useCallback(() => {
     setDisplay((prev) => String(parseFloat(prev) * -1));
-  };
+  }, []);
 
-  const handleDecimal = () => {
+  const handleDecimal = useCallback(() => {
     if (!display.includes(".")) {
       setDisplay((prev) => prev + ".");
     }
-  };
+  }, [display]);
 
-  const buttons = [
+  // Memoize buttons array to prevent recreation on every render
+  const buttons = useMemo<ButtonConfig[][]>(() => [
     [
       { label: "C", action: handleClear, type: "func" },
       { label: "±", action: handleToggleSign, type: "func" },
@@ -107,7 +166,7 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
       { label: ".", action: handleDecimal, type: "num" },
       { label: "=", action: handleEquals, type: "eq" },
     ],
-  ];
+  ], [handleClear, handleToggleSign, handlePercent, handleOperator, handleNumber, handleDecimal, handleEquals]);
 
   return (
     <motion.div

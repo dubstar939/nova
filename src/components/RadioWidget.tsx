@@ -12,72 +12,22 @@ interface Station {
   id: string;
   name: string;
   genre: string;
+  frequency: string;
   url: string;
-  frequency?: string;
-}
-
-const DEFAULT_STATIONS: Station[] = [
-  { 
-    id: "1", 
-    name: "Jazz FM", 
-    genre: "Jazz", 
-    url: "https://stream.jazzfm.com/jazz",
-    frequency: "101.5"
-  },
-  { 
-    id: "2", 
-    name: "Classical Radio", 
-    genre: "Classical", 
-    url: "https://stream.classicalradio.com/classical",
-    frequency: "92.3"
-  },
-  { 
-    id: "3", 
-    name: "Lo-Fi Beats", 
-    genre: "Lo-Fi", 
-    url: "https://stream.zeno.fm/lofi",
-    frequency: "Online"
-  },
-  { 
-    id: "4", 
-    name: "Rock Station", 
-    genre: "Rock", 
-    url: "https://stream.rockstation.com/rock",
-    frequency: "105.7"
-  },
-  { 
-    id: "5", 
-    name: "Electronic Wave", 
-    genre: "Electronic", 
-    url: "https://stream.electronicwave.com/electronic",
-    frequency: "98.1"
-  },
-];
-
-const STORAGE_KEY = "internet_radio_stations";
-
-function loadStations(): Station[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error("Failed to load stations from localStorage:", e);
-  }
-  return DEFAULT_STATIONS;
-}
-
-function saveStations(stations: Station[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stations));
-  } catch (e) {
-    console.error("Failed to save stations to localStorage:", e);
-  }
 }
 
 export default function RadioWidget({ darkMode }: RadioWidgetProps) {
-  const [stations, setStations] = useState<Station[]>(loadStations);
+  const [stations] = useState<Station[]>([
+    { name: "Jazz FM", genre: "Jazz", frequency: "102.2", url: "https://stream.zeno.fm/f3bVV7qVF6ZUV" },
+    { name: "Classical Radio", genre: "Classical", frequency: "Online", url: "https://media-ssl.musicradio.com/ClassicFM" },
+    { name: "Lo-Fi Beats", genre: "Lo-Fi", frequency: "Online", url: "https://stream.zeno.fm/0r5xa8g1v4zuv" },
+    { name: "Rock Station", genre: "Rock", frequency: "95.5", url: "https://stream.zeno.fm/rq4xV7qVF6ZUV" },
+    { name: "Electronic Wave", genre: "Electronic", frequency: "98.1", url: "https://stream.zeno.fm/vf3bV7qVF6ZUV" },
+    { name: "BBC News", genre: "News", frequency: "Online", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service" },
+    { name: "ESPN Radio", genre: "Sports", frequency: "Online", url: "https://stream.zeno.fm/sportsradio" },
+    { name: "Chillhop", genre: "Chill hop", frequency: "Online", url: "https://stream.zeno.fm/chillhop" },
+    { name: "Dubstep FM", genre: "Dubstep", frequency: "Online", url: "https://stream.zeno.fm/dubstep" },
+  ]);
   const [selectedStation, setSelectedStation] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(75);
@@ -97,62 +47,47 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
   const animationRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio element and set up event listeners
   useEffect(() => {
     audioRef.current = new Audio();
-    audioRef.current.preload = "none";
-    
-    // Set up event listeners to sync state with actual audio playback
-    audioRef.current.addEventListener('play', () => setIsPlaying(true));
-    audioRef.current.addEventListener('pause', () => setIsPlaying(false));
-    audioRef.current.addEventListener('error', (e) => {
-      console.error("Audio playback error:", e);
-      setIsPlaying(false);
-      setVisualizerBars(Array(20).fill(5));
-    });
+    audioRef.current.volume = volume / 100;
     
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = "";
         audioRef.current = null;
       }
     };
   }, []);
 
-  // Handle station changes - only update source, don't auto-play
   useEffect(() => {
-    if (!audioRef.current || !stations[selectedStation]) return;
-    
-    const currentStation = stations[selectedStation];
-    
-    // Only change source if it's different from current
-    if (audioRef.current.src !== currentStation.url) {
-      audioRef.current.src = currentStation.url;
-      
-      // If already playing, continue playing the new station
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume / 100;
+    }
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.src = stations[selectedStation].url;
       if (isPlaying) {
-        audioRef.current.play().catch((error) => {
-          console.error("Failed to play stream:", error);
+        audioRef.current.load();
+        audioRef.current.play().catch((err) => {
+          console.error("Error playing station:", err);
           setIsPlaying(false);
-          setVisualizerBars(Array(20).fill(5));
         });
       }
     }
-    
-    audioRef.current.volume = isMuted ? 0 : volume / 100;
-    
-    if (!isPlaying) {
-      setVisualizerBars(Array(20).fill(5));
-    }
-  }, [selectedStation]);
+  }, [selectedStation, stations]);
 
-  // Handle volume and mute changes
   useEffect(() => {
-    if (!audioRef.current) return;
-    
-    audioRef.current.volume = isMuted ? 0 : volume / 100;
-  }, [volume, isMuted]);
+    if (isPlaying && audioRef.current) {
+      audioRef.current.play().catch((err) => {
+        console.error("Error playing station:", err);
+        setIsPlaying(false);
+      });
+    } else if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [isPlaying]);
 
   // Visualizer animation
   useEffect(() => {
@@ -161,7 +96,7 @@ export default function RadioWidget({ darkMode }: RadioWidgetProps) {
         setVisualizerBars(
           Array(20)
             .fill(0)
-            .map(() => Math.random() * 50 + 5)
+            .map(() => Math.random() * 30 + 10)
         );
         animationRef.current = requestAnimationFrame(animate);
       };
