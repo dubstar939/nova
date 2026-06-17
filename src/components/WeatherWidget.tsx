@@ -48,9 +48,9 @@ export default function WeatherWidget({ darkMode }: WeatherWidgetProps) {
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
       case "sunny":
+      case "clear":
         return <Sun className={`w-12 h-12 ${darkMode ? "text-amber-400" : "text-amber-500"}`} />;
       case "cloudy":
-        return <Cloud className={`w-12 h-12 ${darkMode ? "text-slate-400" : "text-slate-500"}`} />;
       case "partly cloudy":
         return (
           <div className="relative">
@@ -58,8 +58,14 @@ export default function WeatherWidget({ darkMode }: WeatherWidgetProps) {
             <Cloud className={`w-8 h-8 absolute -right-2 -bottom-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`} />
           </div>
         );
+      case "foggy":
+        return <Cloud className={`w-12 h-12 ${darkMode ? "text-slate-400" : "text-slate-500"}`} />;
       case "rainy":
         return <CloudRain className={`w-12 h-12 ${darkMode ? "text-blue-400" : "text-blue-500"}`} />;
+      case "snowy":
+        return <Cloud className={`w-12 h-12 ${darkMode ? "text-sky-400" : "text-sky-500"}`} />;
+      case "thunderstorm":
+        return <CloudRain className={`w-12 h-12 ${darkMode ? "text-purple-400" : "text-purple-500"}`} />;
       default:
         return <Sun className={`w-12 h-12 ${darkMode ? "text-amber-400" : "text-amber-500"}`} />;
     }
@@ -248,8 +254,31 @@ export default function WeatherWidget({ darkMode }: WeatherWidgetProps) {
         </div>
       )}
 
+      {/* Default City Buttons (only show when no custom weather) */}
+      {!customWeather && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {defaultWeatherData.map((w, index) => (
+            <button
+              key={w.city}
+              onClick={() => setSelectedCity(index)}
+              className={`px-3 py-1 rounded-full text-xs transition-all ${
+                selectedCity === index
+                  ? darkMode
+                    ? "bg-cyan-500 text-white"
+                    : "bg-blue-500 text-white"
+                  : darkMode
+                  ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {w.city}
+            </button>
+          ))}
+        </div>
+      )}
+
       <motion.div
-        key={selectedCity}
+        key={customWeather ? `custom-${customWeather.city}` : selectedCity}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex-1"

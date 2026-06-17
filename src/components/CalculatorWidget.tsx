@@ -100,7 +100,7 @@ export default function CalculatorWidget({ darkMode }: CalculatorWidgetProps) {
         .replace(/÷/g, "/")
         .replace(/−/g, "-");
       
-      // Validate expression contains only safe characters
+      // Validate expression contains only safe characters (strict whitelist)
       if (!/^[\d+\-*/().\s]+$/.test(sanitized)) {
         setDisplay("Error");
         setEquation("");

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Header from "./components/Header";
 import TimeWidget from "./components/TimeWidget";
 import WeatherWidget from "./components/WeatherWidget";
@@ -174,6 +174,30 @@ function AppContent() {
     []
   );
 
+  // Add widget to dashboard
+  const handleAddWidget = useCallback((widgetId: string) => {
+    const config = WIDGET_REGISTRY[widgetId];
+    if (!config || widgets.some(w => w.id === widgetId)) return;
+    
+    setWidgets((prev) => [
+      ...prev,
+      {
+        id: widgetId,
+        title: config.title,
+        position: config.defaultPosition,
+        size: config.defaultSize,
+        minSize: config.minSize,
+      },
+    ]);
+    setAvailableWidgetIds((prev) => prev.filter(id => id !== widgetId));
+  }, [widgets, setWidgets, setAvailableWidgetIds]);
+
+  // Remove widget from dashboard
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setWidgets((prev) => prev.filter(w => w.id !== widgetId));
+    setAvailableWidgetIds((prev) => [...prev, widgetId].sort());
+  }, [setWidgets, setAvailableWidgetIds]);
+
   // Memoize widget renderer to prevent unnecessary re-renders
   const renderWidget = useCallback((widgetId: string) => {
     switch (widgetId) {
@@ -201,6 +225,15 @@ function AppContent() {
         return null;
     }
   }, [darkMode]);
+
+  // Memoize available widgets for picker - ensure no duplicates
+  const availableWidgets = useMemo(() => {
+    // Filter out any IDs that don't exist in registry and remove duplicates
+    const uniqueIds = [...new Set(availableWidgetIds.filter(id => WIDGET_REGISTRY[id]))];
+    return uniqueIds
+      .map(id => ({ id, ...WIDGET_REGISTRY[id] }))
+      .filter(w => w.title !== undefined);
+  }, [availableWidgetIds]);
 
   if (!isClient) {
     return (
@@ -242,11 +275,98 @@ function AppContent() {
               minSize={widget.minSize}
               onPositionChange={handlePositionChange}
               onSizeChange={handleSizeChange}
+              onRemove={() => handleRemoveWidget(widget.id)}
             >
               {renderWidget(widget.id)}
             </WidgetContainer>
           ))}
         </main>
+
+        {/* Widget Picker Modal */}
+        {showWidgetPicker && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div
+              className={`w-full max-w-md mx-4 rounded-2xl border p-6 ${
+                darkMode
+                  ? "bg-slate-900 border-cyan-500/30"
+                  : "bg-white border-blue-200"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2
+                  className={`text-xl font-bold ${
+                    darkMode ? "text-white" : "text-slate-800"
+                  }`}
+                >
+                  Manage Widgets
+                </h2>
+                <button
+                  onClick={() => setShowWidgetPicker(false)}
+                  className={`p-2 rounded-lg ${
+                    darkMode
+                      ? "hover:bg-slate-800 text-slate-400"
+                      : "hover:bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {availableWidgets.length === 0 ? (
+                  <p className={`text-center py-4 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                    All widgets are already on the dashboard!
+                  </p>
+                ) : (
+                  availableWidgets.map((widget) => (
+                    <div
+                      key={widget.id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${
+                        darkMode ? "bg-slate-800" : "bg-slate-50"
+                      }`}
+                    >
+                      <div>
+                        <h3
+                          className={`font-semibold ${
+                            darkMode ? "text-white" : "text-slate-800"
+                          }`}
+                        >
+                          {widget.title}
+                        </h3>
+                        <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          {widget.defaultSize.width} x {widget.defaultSize.height}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAddWidget(widget.id)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          darkMode
+                            ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
+                        }`}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button
+                onClick={() => setShowWidgetPicker(false)}
+                className={`w-full mt-4 py-3 rounded-lg font-semibold ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700 text-white"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                }`}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* App Locker Modal */}
