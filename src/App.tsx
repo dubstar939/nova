@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import Header from "./components/Header";
+import NewsWidget from "./components/NewsWidget";
 import TimeWidget from "./components/TimeWidget";
 import WeatherWidget from "./components/WeatherWidget";
 import TodoWidget from "./components/TodoWidget";
-import NewsWidget from "./components/NewsWidget";
 import CalculatorWidget from "./components/CalculatorWidget";
 import RadioWidget from "./components/RadioWidget";
 import ProjectWidget from "./components/ProjectWidget";
 import AnnouncementWidget from "./components/AnnouncementWidget";
 import CallLogWidget from "./components/CallLogWidget";
 import YouTubeWidget from "./components/YouTubeWidget";
+import MapsWidget from "./components/MapsWidget";
+import AIAssistantWidget from "./components/AIAssistantWidget";
 import ParticleBackground from "./components/ParticleBackground";
 import WidgetContainer from "./components/WidgetContainer";
 import AppLocker, { ALL_WIDGETS } from "./components/AppLocker";
@@ -28,14 +30,15 @@ const WIDGET_LAYOUT = {
     "todo",
     "projects",
     "announcements",
-    "news",
     "calllog",
     "radio",
     "calculator",
+    "maps",
+    "ai",
   ],
   GRID_COLUMNS: 3,
   GRID_GAP: 20,
-  HEADER_OFFSET: 80,
+  HEADER_OFFSET: 32, // Reduced to account for slim news ticker
 };
 
 interface WidgetState {
@@ -205,6 +208,10 @@ function AppContent() {
         return <YouTubeWidget darkMode={darkMode} />;
       case "announcements":
         return <AnnouncementWidget darkMode={darkMode} />;
+      case "maps":
+        return <MapsWidget darkMode={darkMode} />;
+      case "ai":
+        return <AIAssistantWidget darkMode={darkMode} />;
       default:
         return null;
     }
@@ -226,6 +233,9 @@ function AppContent() {
     >
       <ParticleBackground darkMode={darkMode} />
       <div className="relative z-10">
+        {/* Slim News Ticker at Top */}
+        <NewsWidget darkMode={darkMode} />
+        
         <Header 
           darkMode={darkMode} 
           onResetLayout={handleResetLayout}
