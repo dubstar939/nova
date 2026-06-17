@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, Grid3X3 } from "lucide-react";
+import { Sun, Moon, Search, Plus, X, RotateCcw, LayoutGrid, Grid3X3, Edit2, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -25,8 +25,11 @@ export default function Header({ darkMode, onResetLayout, onOpenAppLocker, onSna
   const [searchEngine, setSearchEngine] = useState<"google" | "duckduckgo" | "bing">("google");
   const [quickLinks, setQuickLinks] = useLocalStorage<QuickLink[]>("quickLinks", []);
   const [isAddingLink, setIsAddingLink] = useState(false);
+  const [editingLinkId, setEditingLinkId] = useState<number | null>(null);
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [editLinkName, setEditLinkName] = useState("");
+  const [editLinkUrl, setEditLinkUrl] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +55,30 @@ export default function Header({ darkMode, onResetLayout, onOpenAppLocker, onSna
 
   const removeQuickLink = (id: number) => {
     setQuickLinks((prev) => prev.filter(link => link.id !== id));
+  };
+
+  const startEditingLink = (link: QuickLink) => {
+    setEditingLinkId(link.id);
+    setEditLinkName(link.name);
+    setEditLinkUrl(link.url);
+  };
+
+  const saveEditedLink = (id: number) => {
+    if (!editLinkName.trim() || !editLinkUrl.trim()) return;
+    setQuickLinks((prev) =>
+      prev.map((link) =>
+        link.id === id ? { ...link, name: editLinkName, url: editLinkUrl } : link
+      )
+    );
+    setEditingLinkId(null);
+    setEditLinkName("");
+    setEditLinkUrl("");
+  };
+
+  const cancelEditing = () => {
+    setEditingLinkId(null);
+    setEditLinkName("");
+    setEditLinkUrl("");
   };
 
   return (
@@ -99,24 +126,73 @@ export default function Header({ darkMode, onResetLayout, onOpenAppLocker, onSna
                   animate={{ scale: 1 }}
                   className="group relative"
                 >
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      darkMode
-                        ? "bg-slate-800 text-cyan-400 hover:bg-slate-700"
-                        : "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                    }`}
-                  >
-                    {link.name}
-                  </a>
-                  <button
-                    onClick={() => removeQuickLink(link.id)}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3 text-white" />
-                  </button>
+                  {editingLinkId === link.id ? (
+                    <div className={`flex items-center gap-1 px-3 py-2 rounded-lg ${
+                      darkMode ? "bg-slate-800" : "bg-blue-50"
+                    }`}>
+                      <Input
+                        value={editLinkName}
+                        onChange={(e) => setEditLinkName(e.target.value)}
+                        placeholder="Name"
+                        className={`w-20 h-6 text-xs ${
+                          darkMode
+                            ? "bg-slate-700 border-cyan-500/30 text-white"
+                            : "bg-white border-blue-200 text-slate-800"
+                        }`}
+                      />
+                      <Input
+                        value={editLinkUrl}
+                        onChange={(e) => setEditLinkUrl(e.target.value)}
+                        placeholder="URL"
+                        className={`w-24 h-6 text-xs ${
+                          darkMode
+                            ? "bg-slate-700 border-cyan-500/30 text-white"
+                            : "bg-white border-blue-200 text-slate-800"
+                        }`}
+                      />
+                      <button
+                        onClick={() => saveEditedLink(link.id)}
+                        className="p-1 rounded hover:bg-green-500/20 transition-colors"
+                      >
+                        <Save className="w-3 h-3 text-green-500" />
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="p-1 rounded hover:bg-red-500/20 transition-colors"
+                      >
+                        <X className="w-3 h-3 text-red-500" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          darkMode
+                            ? "bg-slate-800 text-cyan-400 hover:bg-slate-700"
+                            : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                        }`}
+                      >
+                        {link.name}
+                      </a>
+                      <div className="absolute -top-1 -right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => startEditingLink(link)}
+                          className="w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center hover:bg-amber-600 transition-colors"
+                        >
+                          <Edit2 className="w-2.5 h-2.5 text-white" />
+                        </button>
+                        <button
+                          onClick={() => removeQuickLink(link.id)}
+                          className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-2.5 h-2.5 text-white" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               ))}
               
